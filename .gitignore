@@ -1,0 +1,59 @@
+# Target build directory
+target/
+*.class
+
+# Log files
+*.log
+logs/
+
+# Package Files
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+# Node / Frontend build
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+dist-ssr/
+
+# Runtime tokens and credentials
+tokens/
+tokens/*
+
+# Local Storage
+storage/
+storage/*
+
+# Environment variables & local secrets
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+
+# IDE & Editor files
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+.factorypath
+bin/
+
+# OS generated
+.DS_Store
+Thumbs.db

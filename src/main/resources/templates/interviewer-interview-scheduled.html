@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'Interview Assignment: ' + ${candidateName} + ' (' + ${roundName} + ')'">Interview Assignment</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f1f5f9; margin: 0; padding: 24px; }
+        .wrapper { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); padding: 32px 30px; text-align: center; color: #ffffff; }
+        .brand-badge { display: inline-block; background: rgba(129, 140, 248, 0.2); border: 1px solid rgba(199, 210, 254, 0.3); color: #c7d2fe; padding: 4px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .header p { margin: 4px 0 0 0; font-size: 12px; color: #cbd5e1; }
+        .content { padding: 32px 30px; }
+        .greeting { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; }
+        .card-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #edf2f7; font-size: 14px; }
+        .card-label { color: #64748b; font-weight: 600; }
+        .card-value { color: #0f172a; font-weight: 700; text-align: right; }
+        .score-pill { display: inline-block; background: #dcfce7; color: #15803d; font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 12px; border: 1px solid #bbf7d0; }
+        .btn-container { text-align: center; margin: 30px 0 20px 0; }
+        .btn-meet { display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 28px; border-radius: 10px; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); margin: 6px; }
+        .btn-portal { display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 28px; border-radius: 10px; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35); margin: 6px; }
+        .link-text { font-size: 12px; color: #64748b; text-align: center; margin-top: 8px; word-break: break-all; }
+        .scoring-guide { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 20px; margin-top: 24px; font-size: 13px; color: #166534; }
+        .scoring-guide h4 { margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #14532d; }
+        .scoring-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+        .scoring-pill { background: #dcfce7; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .notes-box { background: #fefce8; border-left: 4px solid #eab308; padding: 14px 16px; border-radius: 6px; font-size: 13px; color: #854d0e; margin-top: 20px; }
+        .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; font-size: 12px; color: #64748b; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="header">
+        <div class="brand-badge">SANVII TECHMET</div>
+        <h1>Interviewer Assignment</h1>
+        <p>Candidate Evaluation & Scheduling Dispatch</p>
+    </div>
+    <div class="content">
+        <div class="greeting">Hello <span th:text="${interviewerName}">Interviewer</span>,</div>
+        <p>You have been assigned to conduct an interview with <strong th:text="${candidateName}">Candidate Name</strong> 
+           for the <strong th:text="${jobTitle}">Job Position</strong> opening.</p>
+
+        <div class="card">
+            <table width="100%" cellpadding="6" cellspacing="0" style="font-size: 14px;">
+                <tr>
+                    <td class="card-label">Candidate Name:</td>
+                    <td class="card-value" th:text="${candidateName}">Amit Singh</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Candidate Contact:</td>
+                    <td class="card-value" th:text="${candidateEmail}">candidate@example.com</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Role / Position:</td>
+                    <td class="card-value" th:text="${jobTitle}">Senior Java Developer</td>
+                </tr>
+                <tr>
+                    <td class="card-label">ATS Match Score:</td>
+                    <td class="card-value">
+                        <span class="score-pill" th:text="${atsScore != null ? atsScore + ' / 100' : 'N/A'}">85.0 / 100</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="card-label">Interview Round:</td>
+                    <td class="card-value" style="color: #4f46e5;" th:text="${roundName}">L1 - Technical Screening</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Date & Time:</td>
+                    <td class="card-value" th:text="${interviewDate}">Oct 24, 2026, 03:00 PM IST</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Duration:</td>
+                    <td class="card-value" th:text="${durationMinutes} + ' Minutes'">45 Minutes</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="btn-container">
+            <a th:href="${meetingLink}" target="_blank" class="btn-meet" th:text="${#strings.contains(meetingLink, 'meet.google.com')} ? '🎥 1. Join Google Meet Room' : '🎥 1. Join Live Video Room'">🎥 1. Join Video Room</a>
+            <a th:href="${portalLink}" target="_blank" class="btn-portal">⭐ 2. Submit Feedback on Portal</a>
+            <div class="link-text">Meeting URL: <span th:text="${meetingLink}">https://meet.jit.si/Sanvii-Interview-Room</span></div>
+            <div class="link-text" style="margin-top: 4px;">Direct Feedback Portal: <a th:href="${portalLink}" th:text="${portalLink}" style="color: #059669; text-decoration: underline;">Portal Link</a></div>
+        </div>
+
+        <div class="scoring-guide">
+            <h4>📋 Interview Assessment Parameters (Rated 1 to 5 Stars):</h4>
+            <div class="scoring-grid">
+                <div class="scoring-pill">1. Technical Competency (1-5 ⭐)</div>
+                <div class="scoring-pill">2. Communication Skills (1-5 ⭐)</div>
+                <div class="scoring-pill">3. Confidence Level (1-5 ⭐)</div>
+                <div class="scoring-pill">4. Body Language & Demeanor (1-5 ⭐)</div>
+            </div>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #166534;">
+                After taking the interview, click the green button above to score each parameter out of 5, enter your comments in the feedback box, and submit your recommendation (Good/Pass or Bad/Reject). Your submission will instantly reflect on the HR dashboard.
+            </p>
+        </div>
+
+        <div class="notes-box" th:if="${notes != null and !#strings.isEmpty(notes)}">
+            <strong>Recruiter Notes / Focus Areas:</strong>
+            <p style="margin: 4px 0 0 0;" th:text="${notes}">Candidate has 5+ years in Spring Boot and Kafka.</p>
+        </div>
+
+        <p style="margin-top: 24px;">Thank you for conducting this interview and helping shape the team at Sanvii Techmet.</p>
+        <p>Thank you for your support in building our team!</p>
+        <p>Best regards,<br/><strong>HR Administration</strong><br/>Sanvii Techmet</p>
+    </div>
+    <div class="footer">
+        <p>&copy; 2026 Sanvii Techmet ATS Platform. All rights reserved.<br/>
+        Internal notification intended for the assigned hiring panelist.</p>
+    </div>
+</div>
+</body>
+</html>

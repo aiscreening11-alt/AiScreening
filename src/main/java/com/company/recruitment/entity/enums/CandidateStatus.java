@@ -1,0 +1,23 @@
+package com.company.recruitment.entity.enums;
+
+public enum CandidateStatus {
+    RECEIVED,
+    PROCESSING,
+    PARSED,
+    SCREENING,
+    SHORTLISTED,
+    REVIEW_REQUIRED,
+    REJECTED,
+    INTERVIEW_SCHEDULED,
+    L1_SCHEDULED,
+    L1_PASSED,
+    L2_SCHEDULED,
+    L2_PASSED,
+    MANAGERIAL_SCHEDULED,
+    MANAGERIAL_PASSED,
+    HR_SCHEDULED,
+    SELECTED,
+    NOT_SELECTED,
+    FAILED,
+    DUPLICATE_APPLICATION
+}

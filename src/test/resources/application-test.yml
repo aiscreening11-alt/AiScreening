@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driverClassName: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+
+ai:
+  provider: mock
+  enabled: true
+
+gmail:
+  enabled: false
+
+ats:
+  shortlist-threshold: 80.0
+  review-threshold: 60.0
+  weights:
+    skills: 40.0
+    experience: 20.0
+    education: 10.0
+    keywords: 10.0
+    responsibilities: 10.0
+    certifications: 5.0
+    resumeQuality: 5.0
+  scoring-weights:
+    rule-based-weight: 0.70
+    ai-weight: 0.30

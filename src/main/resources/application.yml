@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: recruitment-ats-platform
+  profiles:
+    active: dev
+  config:
+    import:
+      - optional:file:./application-local.yml
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
+
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.company.recruitment: DEBUG
+    org.hibernate.SQL: INFO
+
+# Recruitment ATS Engine Configuration
+ats:
+  shortlist-threshold: 80.0
+  review-threshold: 60.0
+  weights:
+    skills: 40.0
+    experience: 20.0
+    education: 10.0
+    keywords: 10.0
+    responsibilities: 10.0
+    certifications: 5.0
+    resumeQuality: 5.0
+  scoring-weights:
+    rule-based-weight: 0.70
+    ai-weight: 0.30
+
+# AI Configuration
+ai:
+  provider: mock # mock | openai | gemini
+  enabled: true
+  api-key: ${AI_API_KEY:mock-api-key}
+  model: ${AI_MODEL:gpt-4o-mini}
+  timeout-seconds: 15
+
+# Gmail Integration Configuration
+gmail:
+  enabled: true # Polling active flag
+  polling:
+    interval: 60000 # 60 seconds
+  client-id: ${GOOGLE_CLIENT_ID:your-google-oauth-client-id.apps.googleusercontent.com}
+  client-secret: ${GOOGLE_CLIENT_SECRET:your-google-oauth-client-secret}
+  redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/gmail/oauth2callback}
+  tokens-directory-path: ./tokens
+  recruitment-email: ${RECRUITMENT_EMAIL:recruitment@company.com}
+
+# Storage Configuration
+storage:
+  local:
+    directory: ./storage/resumes
+
+# Security JWT
+jwt:
+  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  expiration-ms: 86400000 # 24 hours

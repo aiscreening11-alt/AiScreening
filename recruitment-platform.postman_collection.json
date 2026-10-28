@@ -1,0 +1,438 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Recruitment ATS Platform - E2E & Mail Shoot",
+    "description": "Complete Postman collection to test Candidate Screening, ATS Evaluation, and Automated Email Shoot functionality.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "recruiter",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "recruiter123",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Health Check",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["actuator", "health"]
+        },
+        "description": "Verifies that the Spring Boot application and PostgreSQL database are UP and running."
+      }
+    },
+    {
+      "name": "02 - Create Job Opening",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.success && jsonData.data && jsonData.data.id) {",
+              "    pm.collectionVariables.set('jobId', jsonData.data.id);",
+              "    console.log('Saved jobId: ' + jsonData.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jobTitle\": \"Senior Java Spring Boot Developer\",\n  \"department\": \"Engineering\",\n  \"description\": \"Building scalable microservices with Java 21, Spring Boot, and PostgreSQL\",\n  \"requiredSkills\": [\"Java\", \"Spring Boot\", \"PostgreSQL\", \"REST API\", \"Docker\"],\n  \"preferredSkills\": [\"Kubernetes\", \"AWS\", \"Kafka\"],\n  \"minimumExperience\": 4.0,\n  \"educationRequirement\": \"Bachelor in Computer Science\",\n  \"location\": \"Remote\",\n  \"employmentType\": \"FULL_TIME\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "jobs"]
+        },
+        "description": "Creates a job opening. Automatically sets the {{jobId}} collection variable from the response."
+      }
+    },
+    {
+      "name": "03 - List All Jobs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "jobs"]
+        },
+        "description": "Retrieves all active jobs posted in the platform."
+      }
+    },
+    {
+      "name": "04 - Upload Resume & Shoot Email (Screening)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.success && jsonData.data && jsonData.data.id) {",
+              "    pm.collectionVariables.set('candidateId', jsonData.data.id);",
+              "    console.log('Saved candidateId: ' + jsonData.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "description": "Select any PDF, DOCX, or TXT resume file"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/candidates/upload?jobId={{jobId}}&senderEmail=candidate@example.com",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "candidates", "upload"],
+          "query": [
+            {
+              "key": "jobId",
+              "value": "{{jobId}}"
+            },
+            {
+              "key": "senderEmail",
+              "value": "candidate@example.com"
+            }
+          ]
+        },
+        "description": "Uploads candidate resume, parses text with Apache Tika, runs ATS rule & AI scoring, assigns status (SHORTLISTED / REVIEW_REQUIRED / REJECTED), and shoots the automated email."
+      }
+    },
+    {
+      "name": "05 - View Candidate & Shooted Emails History",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/candidates/{{candidateId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "candidates", "{{candidateId}}"]
+        },
+        "description": "Fetches candidate details, ATS score, extracted skills, and the full 'emailCommunications' history with rendered HTML bodies."
+      }
+    },
+    {
+      "name": "06 - Get ATS Score Breakdown",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/candidates/{{candidateId}}/ats-result",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "candidates", "{{candidateId}}", "ats-result"]
+        },
+        "description": "Inspects the detailed ATS score breakdown (Skills 40%, Experience 20%, Education 10%, etc.)."
+      }
+    },
+    {
+      "name": "07 - Submit Interview Result & Shoot Final Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"result\": \"SELECTED\",\n  \"interviewerName\": \"Lead Architect\",\n  \"feedback\": \"Candidate demonstrated exceptional knowledge of Java 21, Spring Boot, and PostgreSQL clustering. Recommending for immediate offer.\",\n  \"interviewDate\": \"2026-10-09T10:00:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/candidates/{{candidateId}}/interview-result",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "candidates", "{{candidateId}}", "interview-result"]
+        },
+        "description": "Records Stage 2 technical interview result (SELECTED or NOT_SELECTED) and shoots the corresponding final Selection/Offer or Regret email."
+      }
+    },
+    {
+      "name": "08 - View Recruiter Dashboard Metrics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/dashboard/metrics",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "dashboard", "metrics"]
+        },
+        "description": "Retrieves real-time applicant stats across the pipeline (shortlisted, rejected, selected, review required)."
+      }
+    },
+    {
+      "name": "09 - Gmail Integration Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/gmail/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "gmail", "status"]
+        },
+        "description": "Checks the configuration and authorization status of the Gmail integration."
+      }
+    },
+    {
+      "name": "10 - Authorize Gmail (Browser Redirect)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/gmail/authorize",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "gmail", "authorize"]
+        },
+        "description": "Opens Google OAuth consent screen directly in browser to link your recruitment Gmail account."
+      }
+    },
+    {
+      "name": "11 - Poll Gmail Inbox Now",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/gmail/poll-now",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "gmail", "poll-now"]
+        },
+        "description": "Triggers an on-demand sweep of the recruitment Gmail inbox to fetch new candidate emails and attachments."
+      }
+    },
+    {
+      "name": "12 - Simulate Inbound Email - Incomplete (Missing Subject & Empty Body)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.success && jsonData.data && jsonData.data.id) {",
+              "    pm.collectionVariables.set('candidateId', jsonData.data.id);",
+              "    console.log('Saved candidateId: ' + jsonData.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "senderEmail",
+              "value": "applicant@example.com",
+              "type": "text"
+            },
+            {
+              "key": "senderName",
+              "value": "Test Applicant",
+              "type": "text"
+            },
+            {
+              "key": "subject",
+              "value": "",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "value": "",
+              "type": "text"
+            },
+            {
+              "key": "jobId",
+              "value": "{{jobId}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/gmail/simulate-inbound",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "gmail", "simulate-inbound"]
+        },
+        "description": "Simulates an inbound candidate email that has no subject and no body. The system rejects the application immediately and shoots the candidate-incomplete-rejected email explaining that a valid subject line, cover note, and resume are required."
+      }
+    },
+    {
+      "name": "13 - Simulate Inbound Email - Incomplete (Missing Resume Attachment)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.success && jsonData.data && jsonData.data.id) {",
+              "    pm.collectionVariables.set('candidateId', jsonData.data.id);",
+              "    console.log('Saved candidateId: ' + jsonData.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "senderEmail",
+              "value": "amit.singh@example.com",
+              "type": "text"
+            },
+            {
+              "key": "senderName",
+              "value": "Amit Singh",
+              "type": "text"
+            },
+            {
+              "key": "subject",
+              "value": "Application for Senior Java Developer",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "value": "Dear Hiring Team,\n\nPlease find my application for the Senior Java Developer role.\n\nBest regards,\nAmit Singh",
+              "type": "text"
+            },
+            {
+              "key": "jobId",
+              "value": "{{jobId}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/gmail/simulate-inbound",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "gmail", "simulate-inbound"]
+        },
+        "description": "Simulates an inbound email that has a valid subject and body, but forgot to attach the resume file. System rejects the application and shoots the rejection email specifically listing missing resume attachment."
+      }
+    },
+    {
+      "name": "14 - Simulate Inbound Email - Valid Application (PDF Attached & Screened)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.success && jsonData.data && jsonData.data.id) {",
+              "    pm.collectionVariables.set('candidateId', jsonData.data.id);",
+              "    console.log('Saved candidateId: ' + jsonData.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "senderEmail",
+              "value": "amit.singh@example.com",
+              "type": "text"
+            },
+            {
+              "key": "senderName",
+              "value": "Amit Singh",
+              "type": "text"
+            },
+            {
+              "key": "subject",
+              "value": "Application for Senior Java Developer - Amit Singh",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "value": "Dear Hiring Team,\n\nI am excited to apply for the Senior Java Developer role. Please find my resume attached.\n\nBest regards,\nAmit Singh",
+              "type": "text"
+            },
+            {
+              "key": "jobId",
+              "value": "{{jobId}}",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "description": "Select PDF resume file"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/gmail/simulate-inbound",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "gmail", "simulate-inbound"]
+        },
+        "description": "Simulates a fully valid inbound candidate email with subject, cover note, and PDF resume. The system passes validation, extracts skills, calculates ATS score, assigns status, and shoots screening email."
+      }
+    }
+  ]
+}

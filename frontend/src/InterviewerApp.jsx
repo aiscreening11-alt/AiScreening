@@ -1,0 +1,1174 @@
+import React, { useState, useEffect } from 'react';
+
+const API_BASE = ''; // Proxied by Vite or same origin
+
+// ==========================================
+// STAR RATING COMPONENT
+// ==========================================
+function StarRatingInput({ value, onChange, label, helperText = '', disabled = false }) {
+  const [hover, setHover] = useState(0);
+  const descriptions = ['', '1/5 - Poor', '2/5 - Below Average', '3/5 - Average / Satisfactory', '4/5 - Good / Strong', '5/5 - Exceptional / Mastery'];
+  const activeVal = hover || value || 0;
+
+  return (
+    <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 hover:border-slate-700 transition">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-bold text-slate-200 tracking-wide uppercase">
+          {label} *
+        </label>
+        <span className="text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-mono">
+          {descriptions[activeVal] || `${activeVal} / 5`}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            type="button"
+            key={star}
+            disabled={disabled}
+            onMouseEnter={() => !disabled && setHover(star)}
+            onMouseLeave={() => !disabled && setHover(0)}
+            onClick={() => !disabled && onChange(star)}
+            className={`text-2xl sm:text-3xl transition transform ${
+              !disabled ? 'hover:scale-125 cursor-pointer' : 'cursor-default'
+            } ${
+              star <= activeVal
+                ? 'text-amber-400 drop-shadow-[0_2px_8px_rgba(251,191,36,0.4)]'
+                : 'text-slate-700 hover:text-amber-200'
+            }`}
+            title={`Rate ${star} out of 5`}
+          >
+            {star <= activeVal ? '★' : '☆'}
+          </button>
+        ))}
+      </div>
+
+      {helperText && (
+        <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+          {helperText}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// INTERVIEWER LOGIN SCREEN
+// ==========================================
+function InterviewerLoginScreen({ onLoginSuccess, toast, setToast }) {
+  const [email, setEmail] = useState('lead.architect@sanvii.com');
+  const [password, setPassword] = useState('Sanvii@2016');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setError(null);
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both your interviewer work email and password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/interviewer/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password: password.trim() })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        onLoginSuccess(json.data);
+      } else {
+        setError(json.message || 'Invalid interviewer credentials. Please contact your HR Administrator.');
+      }
+    } catch (err) {
+      setError('Connection error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden font-sans">
+      {/* Ambient Lighting */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl border text-sm font-medium flex items-center gap-3 transition-all ${
+          toast.type === 'error' ? 'bg-red-950/90 text-red-200 border-red-800' :
+          toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-800' :
+          'bg-blue-950/90 text-blue-200 border-blue-800'
+        }`}>
+          <span>{toast.type === 'error' ? '⚠️' : toast.type === 'success' ? '✅' : 'ℹ️'}</span>
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 text-slate-400 hover:text-white font-bold">&times;</button>
+        </div>
+      )}
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Header / Brand */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center bg-white rounded-2xl px-6 py-3.5 shadow-2xl shadow-amber-500/20 mb-4 ring-4 ring-amber-500/30 max-w-[280px]">
+            <img
+              src="/sanvii-logo.png"
+              alt="Sanvii Techmet"
+              className="h-12 w-auto object-contain"
+              onError={(e) => { if (window.SANVII_LOGO_DATA) e.target.src = window.SANVII_LOGO_DATA; }}
+            />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Sanvii ATS Interviewer Portal
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
+            SANVII TECHMET &bull; Panelist Evaluation &amp; Scoring Engine
+          </p>
+          
+          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+            <span>⭐</span>
+            <span>Dedicated Panelist Workspace</span>
+          </div>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/70">
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <span>Panelist Sign In</span>
+              <span className="text-xs font-normal text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Interviewer Only</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              Log in with the interviewer credentials created by your HR Administrator to view assigned candidates, join Google Meet, and submit round feedback.
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-5 p-3.5 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-xs flex items-start gap-2.5">
+              <span className="text-base leading-none">⚠️</span>
+              <span className="leading-relaxed font-medium">{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Interviewer Work Email
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <span>✉️</span>
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. lead.architect@sanvii.com"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl text-sm text-white placeholder-slate-500 transition outline-none font-medium"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Interviewer Password
+                </label>
+                <span className="text-[11px] text-amber-400 font-mono">HR-Provided</span>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <span>🔒</span>
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your interviewer password"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl text-sm text-white placeholder-slate-500 transition outline-none font-medium"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition text-sm"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '👁️' : '🙈'}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+              >
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin"></span>
+                    <span>Authenticating Interviewer...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In to Interviewer Workspace</span>
+                    <span>➔</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Default Credentials Card */}
+          <div className="mt-6 pt-5 border-t border-slate-800/80">
+            <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-3.5 text-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <span>🔑</span>
+                  <span>Default Panelist Credentials</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('lead.architect@sanvii.com');
+                    setPassword('Sanvii@2016');
+                  }}
+                  className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 underline"
+                >
+                  Quick Fill
+                </button>
+              </div>
+              <div className="space-y-1 font-mono text-[11px] text-slate-400">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Email:</span>
+                  <span className="text-slate-200 font-bold">lead.architect@sanvii.com</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Password:</span>
+                  <span className="text-slate-200 font-bold">Sanvii@2016</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Role:</span>
+                  <span className="text-amber-400 font-bold">Lead Technical Architect</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center mt-6 text-xs text-slate-500">
+          <p>Sanvii ATS &bull; Independent Panelist Portal &bull; Sanvii Techmet</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// MAIN INTERVIEWER PORTAL APP
+// ==========================================
+export default function InterviewerApp() {
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sanvii_interviewer_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [assignedInterviews, setAssignedInterviews] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [activeTab, setActiveTab] = useState('interviews'); // 'interviews' | 'notifications'
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  // Active Interview Being Evaluated
+  const [evaluatingInterview, setEvaluatingInterview] = useState(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
+
+  const [feedbackForm, setFeedbackForm] = useState({
+    technicalRating: 5,
+    communicationRating: 4,
+    confidenceRating: 4,
+    bodyLanguageRating: 5,
+    result: 'SELECTED',
+    comments: '',
+    interviewerName: ''
+  });
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4500);
+  };
+
+  const fetchAssigned = async (email) => {
+    if (!email) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/interviewer/assigned?email=${encodeURIComponent(email)}`);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setAssignedInterviews(json.data || []);
+      } else {
+        showToast(json.message || 'Failed loading assigned interviews', 'error');
+      }
+    } catch (e) {
+      showToast('Error loading assigned interviews: ' + e.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNotifications = async (email) => {
+    if (!email) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/interviewer/notifications?email=${encodeURIComponent(email)}`);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setNotifications(json.data || []);
+      }
+    } catch (e) {
+      console.error('Failed loading notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (session && session.email) {
+      fetchAssigned(session.email);
+      fetchNotifications(session.email);
+
+      const timer = setInterval(() => {
+        fetchAssigned(session.email);
+        fetchNotifications(session.email);
+      }, 15000);
+      return () => clearInterval(timer);
+    }
+  }, [session]);
+
+  const openEvaluationModal = (inv) => {
+    setEvaluatingInterview(inv);
+    setSubmissionSuccess(false);
+    setFeedbackForm({
+      technicalRating: inv.technicalRating || 5,
+      communicationRating: inv.communicationRating || 4,
+      confidenceRating: inv.confidenceRating || 4,
+      bodyLanguageRating: inv.bodyLanguageRating || 5,
+      result: inv.result === 'NOT_SELECTED' ? 'NOT_SELECTED' : 'SELECTED',
+      comments: inv.comments || '',
+      interviewerName: session?.fullName || inv.interviewerName || ''
+    });
+  };
+
+  const handleSubmitEvaluation = async (e) => {
+    if (e) e.preventDefault();
+    if (!evaluatingInterview) return;
+    if (!feedbackForm.comments.trim()) {
+      showToast('Please provide feedback notes in the comment box.', 'error');
+      return;
+    }
+
+    setSubmittingFeedback(true);
+    try {
+      const interviewId = evaluatingInterview.interviewId || evaluatingInterview.id;
+      const endpoint = evaluatingInterview.accessToken
+        ? `${API_BASE}/api/v1/interviewer/session/feedback?token=${encodeURIComponent(evaluatingInterview.accessToken)}`
+        : `${API_BASE}/api/v1/interviewer/interview/${interviewId}/feedback`;
+
+      const payload = {
+        technicalRating: feedbackForm.technicalRating,
+        communicationRating: feedbackForm.communicationRating,
+        confidenceRating: feedbackForm.confidenceRating,
+        bodyLanguageRating: feedbackForm.bodyLanguageRating,
+        result: feedbackForm.result,
+        comments: feedbackForm.comments,
+        interviewerName: feedbackForm.interviewerName || session?.fullName || evaluatingInterview.interviewerName
+      };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setSubmissionSuccess(true);
+        showToast('Evaluation submitted successfully! Feedback is now live on the HR Dashboard.', 'success');
+        if (session?.email) fetchAssigned(session.email);
+      } else {
+        showToast(json.message || 'Failed to submit feedback', 'error');
+      }
+    } catch (err) {
+      showToast('Submission error: ' + err.message, 'error');
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    try {
+      localStorage.removeItem('sanvii_interviewer_session');
+    } catch (e) {}
+    setSession(null);
+    setEvaluatingInterview(null);
+    showToast('Signed out of Interviewer Portal.', 'info');
+  };
+
+  if (!session) {
+    return (
+      <InterviewerLoginScreen
+        onLoginSuccess={(authData) => {
+          setSession(authData);
+          try {
+            localStorage.setItem('sanvii_interviewer_session', JSON.stringify(authData));
+          } catch (e) {}
+          showToast(`Welcome, ${authData.fullName}! Logged into Interviewer Workspace.`, 'success');
+        }}
+        toast={toast}
+        setToast={setToast}
+      />
+    );
+  }
+
+  const pendingInterviews = (assignedInterviews || []).filter(i => !i.evaluated && !i.technicalRating);
+  const completedInterviews = (assignedInterviews || []).filter(i => i.evaluated || i.technicalRating);
+
+  const liveAverage = (
+    (feedbackForm.technicalRating +
+      feedbackForm.communicationRating +
+      feedbackForm.confidenceRating +
+      feedbackForm.bodyLanguageRating) / 4
+  ).toFixed(2);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl border text-sm font-medium flex items-center gap-3 transition-all ${
+          toast.type === 'error' ? 'bg-red-950/90 text-red-200 border-red-800' :
+          toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-800' :
+          'bg-blue-950/90 text-blue-200 border-blue-800'
+        }`}>
+          <span>{toast.type === 'error' ? '⚠️' : toast.type === 'success' ? '✅' : 'ℹ️'}</span>
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 text-slate-400 hover:text-white font-bold">&times;</button>
+        </div>
+      )}
+
+      {/* Top Header */}
+      <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-lg">
+        <div className="max-w-[1650px] w-full mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2.5 flex items-center justify-between gap-4">
+          {/* Brand Logo & Title: perfectly vertically aligned and shrink-0 */}
+          <div className="flex items-center gap-3 shrink-0 py-0.5 min-w-[300px]">
+            <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-md shadow-amber-500/10 border border-slate-700/50 p-1.5 shrink-0 overflow-hidden">
+              <img
+                src="/sanvii-icon.png"
+                alt="Sanvii Techmet"
+                className="w-full h-full object-contain"
+                onError={(e) => { if (window.SANVII_ICON_DATA) e.target.src = window.SANVII_ICON_DATA; }}
+              />
+            </div>
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-base sm:text-lg text-white whitespace-nowrap leading-none tracking-tight">
+                  Sanvii ATS Interviewer Portal
+                </span>
+                <span className="text-[10px] sm:text-xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap leading-tight">
+                  Panelist Workspace
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium whitespace-nowrap mt-1 leading-none tracking-tight">
+                SANVII TECHMET &bull; Candidate Evaluation &amp; Feedback Submission
+              </p>
+            </div>
+          </div>
+
+          {/* Panelist Profile & Sign Out */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-1.5 flex items-center gap-2.5 text-xs">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 font-black flex items-center justify-center text-xs uppercase border border-amber-500/30">
+                {session.fullName ? session.fullName.substring(0, 2) : 'IN'}
+              </div>
+              <div className="hidden sm:block text-left">
+                <div className="font-bold text-white text-xs leading-none">{session.fullName}</div>
+                <div className="text-[10px] text-amber-400 font-mono mt-1 leading-none">{session.email}</div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('notifications');
+                fetchNotifications(session.email);
+              }}
+              className={`relative p-2.5 rounded-xl border transition ${
+                activeTab === 'notifications'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
+                  : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+              }`}
+              title="View Official HR Mail Notifications"
+            >
+              <span className="text-sm">🔔</span>
+              {notifications.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                  {notifications.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                fetchAssigned(session.email);
+                fetchNotifications(session.email);
+              }}
+              disabled={loading}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
+              title="Refresh Assigned Interviews"
+            >
+              <span className={loading ? 'inline-block animate-spin' : ''}>🔄</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-bold transition flex items-center gap-1.5"
+              title="Sign Out of Interviewer Portal"
+            >
+              <span>🚪</span>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Body */}
+      <main className="max-w-[1500px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-8">
+        {/* Real-Time HR Schedule Notification Alert Banner */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-950/80 via-orange-950/60 to-slate-900 border border-amber-600/40 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+              📩
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase font-extrabold tracking-wider text-amber-400">Live HR Notification Dispatch</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+                {pendingInterviews.length > 0
+                  ? `HR has scheduled ${pendingInterviews.length} candidate interview(s) for you to conduct.`
+                  : 'All assigned candidate interviews are up to date.'}
+              </h3>
+              <p className="text-xs text-slate-300">
+                All interview schedule mail notifications, agendas, and video room links from HR are synced live to your panel.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab('interviews')}
+              className={`flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'interviews'
+                  ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+              }`}
+            >
+              <span>📅 Assigned Interviews ({pendingInterviews.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('notifications');
+                fetchNotifications(session.email);
+              }}
+              className={`flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'notifications'
+                  ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30'
+                  : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700'
+              }`}
+            >
+              <span>📩 HR Mail Notifications ({notifications.length})</span>
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'interviews' && (
+          <>
+            {/* Greeting & Metrics Card */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span className="text-xs uppercase font-bold text-amber-400 tracking-wider bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
+                ⭐ Panelist Evaluation Workspace
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white mt-3">
+                Welcome, {session.fullName}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Designation: <strong className="text-slate-200">{session.designation || 'Interview Panelist'}</strong> &bull; Department: <strong className="text-slate-200">{session.department || 'Engineering'}</strong>
+              </p>
+            </div>
+
+            <div className="text-xs text-slate-400 bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800">
+              <div className="font-semibold text-slate-300">💡 Panelist Evaluation Guide:</div>
+              <div className="mt-1">Join the candidate's Google Meet room, evaluate across all 4 parameters (out of 5 ⭐), and submit your recommendation.</div>
+            </div>
+          </div>
+
+          {/* Metrics Counters */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-6 mt-6 pt-6 border-t border-slate-800">
+            <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+              <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Total Assigned</div>
+              <div className="text-2xl sm:text-3xl font-black text-white mt-1">{(assignedInterviews || []).length}</div>
+            </div>
+            <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+              <div className="text-xs text-amber-400 uppercase font-bold tracking-wider">Pending Evaluation</div>
+              <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-1">{pendingInterviews.length}</div>
+            </div>
+            <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+              <div className="text-xs text-emerald-400 uppercase font-bold tracking-wider">Completed Evaluations</div>
+              <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">{completedInterviews.length}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pending Interviews List */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-extrabold text-white text-lg sm:text-xl flex items-center gap-2">
+              <span>📅</span>
+              <span>Scheduled Candidate Interviews to Conduct ({pendingInterviews.length})</span>
+            </h3>
+          </div>
+
+          {pendingInterviews.length === 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-10 text-center text-slate-400 space-y-2">
+              <div className="text-4xl">🎉</div>
+              <div className="font-bold text-white text-base">No Pending Interviews!</div>
+              <div className="text-xs text-slate-500">You are all caught up. Any newly scheduled interviews assigned to {session.email} will appear here automatically.</div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {pendingInterviews.map((inv) => (
+                <div
+                  key={inv.interviewId || inv.id}
+                  className="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 rounded-3xl p-6 shadow-xl transition space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
+                        {inv.roundDisplayName || inv.round || 'Technical Interview'}
+                      </span>
+                      <h4 className="text-xl font-black text-white mt-2">
+                        {inv.candidateName}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Target Role: <strong className="text-slate-200">{inv.jobTitle}</strong> &bull; {inv.candidateEmail}
+                      </p>
+                    </div>
+
+                    {inv.atsScore != null && (
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase font-bold text-slate-500">ATS Match</div>
+                        <div className="text-xl font-black text-emerald-400">{Math.round(inv.atsScore)}%</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-xs">
+                    <div>
+                      <div className="text-[10px] text-slate-500 uppercase font-semibold">Scheduled Date & Time</div>
+                      <div className="font-bold text-slate-200 mt-0.5">
+                        {inv.interviewDate ? new Date(inv.interviewDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'TBD'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500 uppercase font-semibold">Duration & Format</div>
+                      <div className="font-bold text-slate-200 mt-0.5">{inv.durationMinutes || 45} mins &bull; Google Meet</div>
+                    </div>
+                  </div>
+
+                  {/* Actions: Join Meet + Start Scorecard */}
+                  <div className="flex items-center gap-3 pt-2">
+                    {inv.meetingLink ? (
+                      <a
+                        href={inv.meetingLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm text-center shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2"
+                      >
+                        <span>🎥</span>
+                        <span>{inv.meetingLink.includes('meet.google.com') ? 'Join Google Meet' : 'Join Video Meeting'}</span>
+                      </a>
+                    ) : (
+                      <button
+                        disabled
+                        className="flex-1 py-3 px-4 rounded-xl bg-slate-800 text-slate-500 font-bold text-xs text-center cursor-not-allowed"
+                      >
+                        Meet Link Pending
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => openEvaluationModal(inv)}
+                      className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5"
+                    >
+                      <span>⭐</span>
+                      <span>Score Candidate</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Completed Evaluations History */}
+        {completedInterviews.length > 0 && (
+          <div className="space-y-4 pt-6 border-t border-slate-800">
+            <h3 className="font-extrabold text-white text-lg sm:text-xl flex items-center gap-2">
+              <span>✅</span>
+              <span>Your Completed Evaluations ({completedInterviews.length})</span>
+            </h3>
+
+            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl divide-y divide-slate-800">
+              {completedInterviews.map((inv) => (
+                <div key={inv.interviewId || inv.id} className="py-4 first:pt-0 last:pb-0 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-white text-base">{inv.candidateName}</div>
+                      <div className="text-xs text-slate-400">
+                        {inv.roundDisplayName || inv.round} &bull; {inv.jobTitle} &bull; Evaluated {inv.evaluatedAt ? new Date(inv.evaluatedAt).toLocaleDateString() : 'Recently'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-black text-amber-400 text-sm">
+                        ⭐ {inv.overallRating ? inv.overallRating.toFixed(1) : '4.5'} / 5.0
+                      </span>
+                      <span className={`text-xs font-black uppercase px-2.5 py-0.5 rounded-full ${
+                        inv.result === 'SELECTED'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      }`}>
+                        {inv.result === 'SELECTED' ? 'Pass (Selected)' : 'Not Selected'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 4 Ratings Pills */}
+                  <div className="flex flex-wrap gap-2 text-[11px] pt-1">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                      Technical: <strong className="text-amber-400">{inv.technicalRating || 5}/5</strong>
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                      Communication: <strong className="text-amber-400">{inv.communicationRating || 4}/5</strong>
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                      Confidence: <strong className="text-amber-400">{inv.confidenceRating || 4}/5</strong>
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                      Body Language: <strong className="text-amber-400">{inv.bodyLanguageRating || 5}/5</strong>
+                    </span>
+                  </div>
+
+                  {inv.comments && (
+                    <div className="text-xs text-slate-400 italic bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
+                      "{inv.comments}"
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    )}
+
+        {/* ========================================== */}
+        {/* OFFICIAL HR MAIL NOTIFICATIONS TAB VIEW   */}
+        {/* ========================================== */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase font-extrabold tracking-wider text-amber-400">Panelist Dispatch Log</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                </div>
+                <h3 className="text-2xl font-black text-white mt-1 flex items-center gap-2">
+                  <span>📩</span>
+                  <span>Official HR Mail Notifications &amp; Invitations ({notifications.length})</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  These are the official notification emails dispatched by HR directly to your account (<strong className="text-amber-300 font-mono">{session.email}</strong>).
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => fetchNotifications(session.email)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold border border-slate-700 flex items-center gap-1.5 self-start sm:self-auto transition"
+              >
+                <span>🔄 Refresh Mail Dispatches</span>
+              </button>
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-12 text-center text-slate-400 space-y-3">
+                <div className="text-5xl">📭</div>
+                <div className="font-bold text-white text-lg">No Mail Notifications Yet</div>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Whenever HR schedules an interview assigning you as the evaluator, the full official email invitation, candidate resume profile, and meeting link will be logged here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-3xl p-6 shadow-xl transition flex flex-col lg:flex-row lg:items-center justify-between gap-5"
+                  >
+                    <div className="space-y-2.5 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                          ✉️ HR Interview Dispatch
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                          ● Synchronized in Portal
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">
+                          📅 {notif.sentAt ? new Date(notif.sentAt).toLocaleString() : 'Recent'}
+                        </span>
+                      </div>
+
+                      <h4 className="text-lg font-black text-white leading-snug">{notif.subject}</h4>
+
+                      <div className="text-xs text-slate-300 flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <span>👤 Candidate: <strong className="text-white">{notif.candidateName}</strong></span>
+                        <span>📬 Recipient: <strong className="text-amber-300 font-mono">{notif.recipientEmail}</strong></span>
+                        {notif.meetingLink && (
+                          <span className="text-slate-400 font-mono text-[11px] truncate max-w-xs">
+                            🔗 {notif.meetingLink}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons on notification card */}
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedNotification(notif)}
+                        className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition shadow-sm"
+                        title="Preview formatted official HR email message"
+                      >
+                        <span>👁️ Read Official Email</span>
+                      </button>
+
+                      {notif.meetingLink && (
+                        <a
+                          href={notif.meetingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 transition"
+                        >
+                          <span>🎥 {notif.meetingLink.includes('meet.google.com') ? 'Join Google Meet' : 'Join Live Video Room'}</span>
+                          <span>&rarr;</span>
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const match = (assignedInterviews || []).find(i => i.interviewId === notif.interviewId || i.id === notif.interviewId) || {
+                            interviewId: notif.interviewId,
+                            candidateName: notif.candidateName,
+                            interviewerName: session.fullName,
+                            roundDisplayName: 'Technical Interview',
+                            jobTitle: 'Candidate Position'
+                          };
+                          openEvaluationModal(match);
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 transition flex items-center gap-1.5"
+                      >
+                        <span>⭐ Conduct Evaluation</span>
+                        <span>&rarr;</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* ========================================== */}
+      {/* FULL EMAIL HTML DISPATCH MODAL PREVIEW     */}
+      {/* ========================================== */}
+      {selectedNotification && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-fade-in">
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800 flex items-center justify-between text-white">
+              <div className="min-w-0 pr-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                    Official HR Dispatch Email
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {selectedNotification.sentAt ? new Date(selectedNotification.sentAt).toLocaleString() : ''}
+                  </span>
+                </div>
+                <h3 className="font-black text-base sm:text-lg truncate mt-1">{selectedNotification.subject}</h3>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  Delivered to: <span className="text-amber-300 font-mono">{selectedNotification.recipientEmail}</span> &bull; Candidate: <span className="text-white font-semibold">{selectedNotification.candidateName}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedNotification(null)}
+                className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xl font-bold shrink-0"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Rendered Email Content Container */}
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white text-slate-900">
+              <div
+                dangerouslySetInnerHTML={{ __html: selectedNotification.bodyContent }}
+              />
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedNotification(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+              >
+                Close Preview
+              </button>
+
+              <div className="flex items-center gap-2.5">
+                {selectedNotification.meetingLink && (
+                  <a
+                    href={selectedNotification.meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5"
+                  >
+                    <span>🎥 {selectedNotification.meetingLink.includes('meet.google.com') ? 'Join Google Meet' : 'Join Live Video Room'}</span>
+                    <span>&rarr;</span>
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const notif = selectedNotification;
+                    setSelectedNotification(null);
+                    const match = (assignedInterviews || []).find(i => i.interviewId === notif.interviewId || i.id === notif.interviewId) || {
+                      interviewId: notif.interviewId,
+                      candidateName: notif.candidateName,
+                      interviewerName: session.fullName,
+                      roundDisplayName: 'Technical Interview',
+                      jobTitle: 'Candidate Position'
+                    };
+                    openEvaluationModal(match);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20"
+                >
+                  ⭐ Start Evaluation &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Evaluation Modal */}
+      {evaluatingInterview && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-slate-950 flex items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-extrabold text-slate-950/80">
+                  Candidate Evaluation Scorecard
+                </span>
+                <h3 className="font-black text-xl text-slate-950 mt-0.5">
+                  Evaluate: {evaluatingInterview.candidateName}
+                </h3>
+                <div className="text-xs text-slate-950/90 font-medium">
+                  {evaluatingInterview.roundDisplayName || evaluatingInterview.round} &bull; {evaluatingInterview.jobTitle}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEvaluatingInterview(null)}
+                className="w-8 h-8 rounded-full bg-slate-950/20 hover:bg-slate-950/30 text-slate-950 font-black flex items-center justify-center transition"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {submissionSuccess ? (
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 text-3xl flex items-center justify-center mx-auto border border-emerald-500/30">
+                  ✓
+                </div>
+                <h4 className="text-2xl font-black text-white">Evaluation Successfully Recorded!</h4>
+                <p className="text-sm text-slate-300 max-w-md mx-auto">
+                  Your 4-parameter scoring and comprehensive feedback have been dispatched to the HR Administrator dashboard.
+                </p>
+                <div className="pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEvaluatingInterview(null)}
+                    className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-sm transition"
+                  >
+                    Close Scorecard
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitEvaluation} className="p-6 space-y-6">
+                {/* Score summary header */}
+                <div className="flex items-center justify-between p-4 bg-slate-950/80 rounded-2xl border border-slate-800">
+                  <div>
+                    <div className="text-xs text-slate-400 font-semibold uppercase">Overall Composite Score</div>
+                    <div className="text-2xl font-black text-amber-400 mt-0.5">⭐ {liveAverage} / 5.0</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-slate-400 font-semibold uppercase">Interviewer Panelist</div>
+                    <div className="text-sm font-bold text-white mt-0.5">{session.fullName}</div>
+                  </div>
+                </div>
+
+                {/* 4 Parameters */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <StarRatingInput
+                    label="1. Technical Competency"
+                    value={feedbackForm.technicalRating}
+                    onChange={v => setFeedbackForm({ ...feedbackForm, technicalRating: v })}
+                    helperText="Coding depth, system design, architectural principles, algorithms, and practical debugging."
+                  />
+
+                  <StarRatingInput
+                    label="2. Communication Skills"
+                    value={feedbackForm.communicationRating}
+                    onChange={v => setFeedbackForm({ ...feedbackForm, communicationRating: v })}
+                    helperText="Clarity of expression, structure of thoughts, active listening, and explaining complex ideas."
+                  />
+
+                  <StarRatingInput
+                    label="3. Confidence Level"
+                    value={feedbackForm.confidenceRating}
+                    onChange={v => setFeedbackForm({ ...feedbackForm, confidenceRating: v })}
+                    helperText="Poise under questioning, ownership, conviction, and composure with unknown problems."
+                  />
+
+                  <StarRatingInput
+                    label="4. Body Language & Demeanor"
+                    value={feedbackForm.bodyLanguageRating}
+                    onChange={v => setFeedbackForm({ ...feedbackForm, bodyLanguageRating: v })}
+                    helperText="Professional presence, video engagement, eye contact, respectful posture, and team enthusiasm."
+                  />
+                </div>
+
+                {/* Recommendation / Verdict */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                    Round Recommendation Decision *
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackForm({ ...feedbackForm, result: 'SELECTED' })}
+                      className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
+                        feedbackForm.result === 'SELECTED'
+                          ? 'bg-emerald-950/60 border-emerald-500 text-white ring-2 ring-emerald-500/30'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-sm text-emerald-400">Pass / Recommend</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">Candidate advances to the next stage</div>
+                      </div>
+                      <span className="text-xl">✅</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackForm({ ...feedbackForm, result: 'NOT_SELECTED' })}
+                      className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
+                        feedbackForm.result === 'NOT_SELECTED'
+                          ? 'bg-rose-950/60 border-rose-500 text-white ring-2 ring-rose-500/30'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-sm text-rose-400">Do Not Recommend</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">Halt candidate pipeline at this round</div>
+                      </div>
+                      <span className="text-xl">❌</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom Comments Box */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      Interviewer Comments & Detailed Feedback *
+                    </label>
+                    <span className="text-[11px] text-slate-500">Visible directly on HR Administrator Dashboard</span>
+                  </div>
+                  <textarea
+                    rows="4"
+                    required
+                    value={feedbackForm.comments}
+                    onChange={e => setFeedbackForm({ ...feedbackForm, comments: e.target.value })}
+                    placeholder="Provide detailed observations: What were their core technical strengths? How did they approach problems? Any specific gaps or coaching areas? Cultural fit notes..."
+                    className="w-full text-sm p-4 bg-slate-950 border border-slate-800 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 leading-relaxed font-sans"
+                  ></textarea>
+                </div>
+
+                {/* Submit button */}
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setEvaluatingInterview(null)}
+                    className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={submittingFeedback}
+                    className="px-8 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <span>{submittingFeedback ? '⏳' : '🚀'}</span>
+                    <span>{submittingFeedback ? 'Submitting Evaluation...' : 'Submit Evaluation to HR'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

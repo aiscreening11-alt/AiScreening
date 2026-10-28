@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'Interview Invitation: ' + ${roundName} + ' – ' + ${jobTitle}">Interview Invitation</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f1f5f9; margin: 0; padding: 24px; }
+        .wrapper { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 32px 30px; text-align: center; color: #ffffff; }
+        .brand-badge { display: inline-block; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(147, 197, 253, 0.3); color: #93c5fd; padding: 4px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .header p { margin: 4px 0 0 0; font-size: 12px; color: #94a3b8; }
+        .content { padding: 32px 30px; }
+        .greeting { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; }
+        .card-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #edf2f7; font-size: 14px; }
+        .card-row:last-child { border-bottom: none; }
+        .card-label { color: #64748b; font-weight: 600; }
+        .card-value { color: #0f172a; font-weight: 700; text-align: right; }
+        .btn-container { text-align: center; margin: 30px 0 20px 0; }
+        .btn-meet { display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+        .link-text { font-size: 12px; color: #64748b; text-align: center; margin-top: 8px; word-break: break-all; }
+        .instructions { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 6px; font-size: 13px; color: #1e40af; margin-top: 24px; }
+        .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; font-size: 12px; color: #64748b; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="header">
+        <div class="brand-badge">SANVII TECHMET</div>
+        <h1>Interview Invitation</h1>
+        <p>Deploying Excellence, Delivering Success</p>
+    </div>
+    <div class="content">
+        <div class="greeting">Dear <span th:text="${candidateName}">Candidate</span>,</div>
+        <p>Congratulations! We are delighted to inform you that you have been invited to participate in the 
+           <strong th:text="${roundName}">L1 Technical Screening</strong> interview for the 
+           <strong th:text="${jobTitle}">Open Position</strong> role at Sanvii Techmet.</p>
+
+        <div class="card">
+            <table width="100%" cellpadding="6" cellspacing="0" style="font-size: 14px;">
+                <tr>
+                    <td class="card-label">Interview Round:</td>
+                    <td class="card-value" style="color: #2563eb;" th:text="${roundName}">L1 - Technical Screening</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Scheduled Date & Time:</td>
+                    <td class="card-value" th:text="${interviewDate}">Oct 24, 2026, 03:00 PM IST</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Duration:</td>
+                    <td class="card-value" th:text="${durationMinutes} + ' Minutes'">45 Minutes</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Interviewer:</td>
+                    <td class="card-value" th:text="${interviewerName}">Technical Lead</td>
+                </tr>
+                <tr>
+                    <td class="card-label">Meeting Platform:</td>
+                    <td class="card-value" th:text="${#strings.contains(meetingLink, 'meet.google.com')} ? 'Google Meet' : 'Sanvii Live Video Room'">Live Video Room</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="btn-container">
+            <a th:href="${meetingLink}" target="_blank" class="btn-meet" th:text="${#strings.contains(meetingLink, 'meet.google.com')} ? '🎥 Join Google Meet Room' : '🎥 Join Live Video Room'">🎥 Join Meeting Room</a>
+            <div class="link-text">Meeting URL: <span th:text="${meetingLink}">https://meet.jit.si/Sanvii-Interview-Room</span></div>
+        </div>
+
+        <div class="instructions">
+            <strong>Important Instructions:</strong>
+            <ul style="margin: 6px 0 0 0; padding-left: 20px;">
+                <li>Please join the meeting room 5 minutes prior to your scheduled slot.</li>
+                <li>Ensure you have a stable high-speed internet connection and functional webcam/audio.</li>
+                <li>Be prepared with your resume and a quiet, professional environment.</li>
+            </ul>
+        </div>
+
+        <p style="margin-top: 24px;">If you have any questions or require rescheduling, please reply directly to this email.</p>
+        <p>We look forward to meeting with you!</p>
+        <p>Warm regards,<br/><strong>Talent Acquisition Team</strong><br/>Sanvii Techmet</p>
+    </div>
+    <div class="footer">
+        <p>&copy; 2026 Sanvii Techmet ATS Platform. All rights reserved.<br/>
+        This is an automated dispatch from the Sanvii Talent Screening Engine.</p>
+    </div>
+</div>
+</body>
+</html>
