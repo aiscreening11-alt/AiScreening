@@ -27,7 +27,7 @@ import com.company.recruitment.service.gmail.GmailClient;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class GmailAdminController {
 
     private final GmailAuthenticationService authService;
