@@ -26,12 +26,10 @@ dist/
 dist-ssr/
 
 # Runtime tokens and credentials
-tokens/
-tokens/*
+/tokens/
 
-# Local Storage
-storage/
-storage/*
+# Local Storage (root directory only)
+/storage/
 
 # Environment variables & local secrets
 .env
