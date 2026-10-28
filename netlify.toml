@@ -1,0 +1,10 @@
+[build]
+  base = "frontend"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# Single-page app fallback so client-side routes (e.g. /interviewer) load the app
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
