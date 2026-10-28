@@ -3,6 +3,13 @@
   command = "npm install && npm run build"
   publish = "dist"
 
+# Proxy all API requests to the Render backend (Zero CORS configuration needed in browser)
+[[redirects]]
+  from = "/api/*"
+  to = "https://aiscreening.onrender.com/api/:splat"
+  status = 200
+  force = true
+
 # Single-page app fallback so client-side routes (e.g. /interviewer) load the app
 [[redirects]]
   from = "/*"

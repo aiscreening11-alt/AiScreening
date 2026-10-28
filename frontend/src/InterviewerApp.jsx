@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API_BASE = ''; // Proxied by Vite or same origin
+const API_BASE = import.meta.env.VITE_API_BASE || ''; // Uses Netlify proxy /api, or optional VITE_API_BASE override
 
 // ==========================================
 // STAR RATING COMPONENT

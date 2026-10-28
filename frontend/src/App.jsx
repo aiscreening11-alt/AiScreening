@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 
-const API_BASE = ''; // Uses Vite proxy config to forward to http://localhost:8080
+const API_BASE = import.meta.env.VITE_API_BASE || ''; // Uses Netlify proxy /api, or optional VITE_API_BASE override
 
 const getAuthHeaders = (auth) => {
   if (!auth || !auth.username || !auth.password) return {};
