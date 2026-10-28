@@ -30,4 +30,13 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> success(T data) {
         return success(data, "Operation successful");
     }
+
+    public static <T> ApiResponse<T> error(String message) {
+        return ApiResponse.<T>builder()
+                .timestamp(LocalDateTime.now())
+                .success(false)
+                .message(message)
+                .data(null)
+                .build();
+    }
 }

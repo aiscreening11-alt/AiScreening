@@ -47,11 +47,41 @@ public class GmailAdminController {
     }
 
     @PostMapping("/gmail/send-test")
-    public ResponseEntity<ApiResponse<String>> sendTestEmail(@RequestParam String toEmail) {
-        String testSubject = "Sanvii ATS Notification Test";
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendTestEmail(@RequestParam String toEmail) {
+        String testSubject = "Sanvii ATS Notification Test - Delivery Verification";
         String testBody = "<h3>Sanvii ATS Notification Test</h3><p>This email verifies automated email delivery from the Sanvii ATS Platform to <strong>" + toEmail + "</strong>.</p>";
-        gmailClient.sendHtmlEmail(toEmail, testSubject, testBody);
-        return ResponseEntity.ok(ApiResponse.success("Test email successfully sent to " + toEmail));
+        
+        boolean authorized = authService.isAuthorized();
+        if (!authorized) {
+            log.warn("Gmail OAuth not authorized. Cannot send live email to {}", toEmail);
+            return ResponseEntity.ok(ApiResponse.success(
+                    Map.of(
+                            "recipient", toEmail,
+                            "sent", false,
+                            "gmailAuthorized", false,
+                            "message", "Gmail OAuth is not authorized yet. Please open /api/v1/gmail/authorize in your browser to link your Gmail account."
+                    ),
+                    "Gmail API not authorized"
+            ));
+        }
+
+        try {
+            gmailClient.sendHtmlEmail(toEmail, testSubject, testBody);
+            return ResponseEntity.ok(ApiResponse.success(
+                    Map.of(
+                            "recipient", toEmail,
+                            "sent", true,
+                            "gmailAuthorized", true,
+                            "message", "Test email successfully sent to " + toEmail
+                    ),
+                    "Email sent successfully"
+            ));
+        } catch (Exception ex) {
+            log.error("Failed to send test email to {}: {}", toEmail, ex.getMessage(), ex);
+            return ResponseEntity.status(500).body(ApiResponse.error(
+                    "Failed to deliver email: " + ex.getMessage()
+            ));
+        }
     }
 
     @GetMapping("/gmail/authorize")

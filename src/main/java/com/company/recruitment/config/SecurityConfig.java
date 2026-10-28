@@ -55,6 +55,8 @@ public class SecurityConfig {
                                 "/api/v1/gmail/authorize",
                                 "/api/v1/gmail/auth-url",
                                 "/api/v1/gmail/oauth2callback",
+                                "/api/v1/gmail/send-test",
+                                "/api/v1/gmail/status",
                                 "/api/v1/interviewer/**",
                                 "/interviewer/**",
                                 "/h2-console/**",
