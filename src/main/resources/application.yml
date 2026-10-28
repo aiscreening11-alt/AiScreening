@@ -2,7 +2,7 @@ spring:
   application:
     name: recruitment-ats-platform
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   config:
     import:
       - optional:file:./application-local.yml
@@ -12,7 +12,7 @@ spring:
       max-request-size: 15MB
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 # Logging
 logging:
