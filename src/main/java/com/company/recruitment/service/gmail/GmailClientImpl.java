@@ -10,7 +10,10 @@ import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -26,6 +29,12 @@ import java.util.*;
 public class GmailClientImpl implements GmailClient {
 
     private final GmailAuthenticationService authService;
+
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
 
     @Value("${gmail.recruitment-email:recruitment@company.com}")
     private String recruitmentEmail;
@@ -163,54 +172,71 @@ public class GmailClientImpl implements GmailClient {
 
     @Override
     public void sendHtmlEmail(String recipientEmail, String subject, String htmlBody) {
+        // Mode 1: Dispatch via Google Gmail OAuth API if authorized
         Gmail service = authService.getGmailService();
-        if (service == null) {
-            log.warn("Gmail API not authorized to send email to {}. Simulating sending (Dev/Test mode).", recipientEmail);
-            return;
-        }
-
-        try {
-            // Determine the true sender email from the authenticated Gmail profile to satisfy Google security policy
-            String senderEmail = recruitmentEmail;
+        if (service != null) {
             try {
-                Profile profile = service.users().getProfile(USER_ID).execute();
-                if (profile != null && profile.getEmailAddress() != null && !profile.getEmailAddress().isBlank()) {
-                    senderEmail = profile.getEmailAddress();
-                    log.info("Resolved authenticated Gmail sender address: {}", senderEmail);
+                String senderEmail = recruitmentEmail;
+                try {
+                    Profile profile = service.users().getProfile(USER_ID).execute();
+                    if (profile != null && profile.getEmailAddress() != null && !profile.getEmailAddress().isBlank()) {
+                        senderEmail = profile.getEmailAddress();
+                        log.info("Resolved authenticated Gmail sender address: {}", senderEmail);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Could not retrieve Gmail profile email address ({}), falling back to configured: {}", ex.getMessage(), recruitmentEmail);
                 }
+
+                Session session = Session.getDefaultInstance(new Properties(), null);
+                MimeMessage email = new MimeMessage(session);
+                email.setFrom(new InternetAddress(senderEmail, "Sanvii ATS Recruitment"));
+                email.addRecipient(jakarta.mail.Message.RecipientType.TO, new InternetAddress(recipientEmail));
+                email.setSubject(subject, "UTF-8");
+                email.setContent(htmlBody, "text/html; charset=UTF-8");
+
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                email.writeTo(buffer);
+                byte[] bytes = buffer.toByteArray();
+                String encodedEmail = Base64.encodeBase64URLSafeString(bytes);
+
+                Message message = new Message();
+                message.setRaw(encodedEmail);
+                service.users().messages().send(USER_ID, message).execute();
+                log.info("Successfully dispatched email via Gmail OAuth API to '{}'", recipientEmail);
+                return;
+
+            } catch (com.google.api.client.auth.oauth2.TokenResponseException tre) {
+                log.warn("Google OAuth token expired or revoked when sending email to {}: {}", recipientEmail, tre.getMessage());
+                authService.purgeStoredCredential();
             } catch (Exception ex) {
-                log.warn("Could not retrieve Gmail profile email address ({}), falling back to configured: {}", ex.getMessage(), recruitmentEmail);
+                log.warn("Gmail OAuth API dispatch failed for {}: {}. Checking for SMTP fallback...", recipientEmail, ex.getMessage());
             }
-
-            Session session = Session.getDefaultInstance(new Properties(), null);
-            MimeMessage email = new MimeMessage(session);
-            email.setFrom(new InternetAddress(senderEmail, "Sanvii ATS Recruitment"));
-            email.addRecipient(jakarta.mail.Message.RecipientType.TO, new InternetAddress(recipientEmail));
-            email.setSubject(subject, "UTF-8");
-            email.setContent(htmlBody, "text/html; charset=UTF-8");
-
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            email.writeTo(buffer);
-            byte[] bytes = buffer.toByteArray();
-            String encodedEmail = Base64.encodeBase64URLSafeString(bytes);
-
-            Message message = new Message();
-            message.setRaw(encodedEmail);
-            service.users().messages().send(USER_ID, message).execute();
-            log.info("Successfully sent email via Gmail API from '{}' to '{}' with subject: '{}'", senderEmail, recipientEmail, subject);
-
-        } catch (com.google.api.client.auth.oauth2.TokenResponseException tre) {
-            log.error("Google OAuth token expired or revoked when sending email to {}: {}", recipientEmail, tre.getDetails() != null ? tre.getDetails().getErrorDescription() : tre.getMessage());
-            authService.purgeStoredCredential();
-            throw new GmailIntegrationException("Google OAuth token expired or revoked. Please re-authorize Gmail integration at /api/v1/gmail/authorize", tre);
-        } catch (com.google.api.client.googleapis.json.GoogleJsonResponseException gjre) {
-            String details = gjre.getDetails() != null ? gjre.getDetails().getMessage() : gjre.getMessage();
-            log.error("Google Gmail API rejected email to {} [HTTP {}]: {}", recipientEmail, gjre.getStatusCode(), details, gjre);
-            throw new GmailIntegrationException("Gmail API error [" + gjre.getStatusCode() + "]: " + details, gjre);
-        } catch (MessagingException | IOException e) {
-            log.error("Failed to send email to {}: {}", recipientEmail, e.getMessage(), e);
-            throw new GmailIntegrationException("Error sending email to " + recipientEmail + ": " + e.getMessage(), e);
         }
+
+        // Mode 2: Dispatch via Gmail SMTP (Spring Mail) if MAIL_PASSWORD configured
+        if (mailSender != null && mailPassword != null && !mailPassword.isBlank()) {
+            try {
+                log.info("Dispatching email via Gmail SMTP (tls) to '{}'", recipientEmail);
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom(new InternetAddress(recruitmentEmail, "Sanvii ATS Recruitment"));
+                helper.setTo(recipientEmail);
+                helper.setSubject(subject);
+                helper.setText(htmlBody, true);
+                mailSender.send(message);
+                log.info("Successfully dispatched email via Gmail SMTP to '{}'", recipientEmail);
+                return;
+            } catch (Exception smtpEx) {
+                log.error("Failed to send email via SMTP to {}: {}", recipientEmail, smtpEx.getMessage(), smtpEx);
+                throw new GmailIntegrationException("SMTP email delivery to " + recipientEmail + " failed: " + smtpEx.getMessage(), smtpEx);
+            }
+        }
+
+        // Neither mode available
+        String errorMsg = "Cannot dispatch email to " + recipientEmail + ": Gmail OAuth is not authorized and SMTP password is not set. " +
+                "Authorize at /api/v1/gmail/authorize or set MAIL_PASSWORD (16-char Gmail App Password) in your Render environment variables.";
+        log.error(errorMsg);
+        throw new GmailIntegrationException(errorMsg);
     }
 
     private void findAttachments(MessagePart part, List<AttachmentMetadata> result) {

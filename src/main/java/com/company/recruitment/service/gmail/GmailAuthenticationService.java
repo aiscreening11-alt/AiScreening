@@ -84,11 +84,26 @@ public class GmailAuthenticationService {
         }
     }
 
+    public String getEffectiveRedirectUri() {
+        if (redirectUri != null && !redirectUri.contains("localhost")) {
+            return redirectUri;
+        }
+        String renderUrl = System.getenv("RENDER_EXTERNAL_URL");
+        if (renderUrl != null && !renderUrl.isBlank()) {
+            return renderUrl.replaceAll("/+$", "") + "/api/v1/gmail/oauth2callback";
+        }
+        String appBase = System.getenv("APP_BASE_URL");
+        if (appBase != null && !appBase.isBlank()) {
+            return appBase.replaceAll("/+$", "") + "/api/v1/gmail/oauth2callback";
+        }
+        return redirectUri;
+    }
+
     public String buildAuthorizationUrl() {
         if (flow == null) {
             throw new GmailIntegrationException("Gmail OAuth is not configured with valid Client ID / Secret in application.yml or environment");
         }
-        return flow.newAuthorizationUrl().setRedirectUri(redirectUri).build();
+        return flow.newAuthorizationUrl().setRedirectUri(getEffectiveRedirectUri()).build();
     }
 
     public void exchangeCodeForTokens(String code) {
@@ -96,7 +111,7 @@ public class GmailAuthenticationService {
             throw new GmailIntegrationException("Gmail OAuth flow is not initialized");
         }
         try {
-            GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(redirectUri).execute();
+            GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(getEffectiveRedirectUri()).execute();
             flow.createAndStoreCredential(response, USER_ID);
             log.info("Successfully exchanged authorization code and stored Gmail OAuth credentials.");
         } catch (IOException e) {

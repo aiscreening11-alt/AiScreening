@@ -22,6 +22,9 @@ public class ThymeleafEmailServiceImpl implements EmailService {
     private final GmailClient gmailClient;
     private final EmailCommunicationRepository emailCommunicationRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${app.base-url:https://aiscreening.onrender.com}")
+    private String appBaseUrl;
+
     @Override
     @Transactional
     public void sendShortlistEmail(Candidate candidate) {
@@ -127,7 +130,7 @@ public class ThymeleafEmailServiceImpl implements EmailService {
             interviewerContext.setVariable("atsScore", candidate.getAtsResult() != null ? candidate.getAtsResult().getFinalScore() : null);
 
             String portalToken = interview.getAccessToken() != null ? interview.getAccessToken() : interview.getId().toString();
-            String portalLink = "http://localhost:8080/interviewer.html?token=" + portalToken;
+            String portalLink = (appBaseUrl != null ? appBaseUrl.replaceAll("/+$", "") : "https://aiscreening.onrender.com") + "/interviewer.html?token=" + portalToken;
             interviewerContext.setVariable("portalLink", portalLink);
             interviewerContext.setVariable("interviewId", interview.getId() != null ? interview.getId().toString() : "");
 
