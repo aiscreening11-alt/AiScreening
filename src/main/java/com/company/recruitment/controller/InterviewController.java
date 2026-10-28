@@ -8,12 +8,14 @@ import com.company.recruitment.dto.response.InterviewDto;
 import com.company.recruitment.service.interview.InterviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/candidates")
 @RequiredArgsConstructor
@@ -27,6 +29,8 @@ public class InterviewController {
             @PathVariable UUID candidateId,
             @Valid @RequestBody ScheduleInterviewRequestDto request) {
 
+        log.info(">>> [CONTROLLER] HR scheduling interview: CandidateId={}, Round={}, Interviewer='{}' <{}>",
+                candidateId, request.getRound(), request.getInterviewerName(), request.getInterviewerEmail());
         CandidateResponseDto updated = interviewService.scheduleInterview(candidateId, request);
         return ResponseEntity.ok(ApiResponse.success(updated,
                 request.getRound().getDisplayName() + " scheduled successfully! Google Meet invitation sent to candidate & interviewer."));
@@ -47,6 +51,7 @@ public class InterviewController {
             @PathVariable UUID candidateId,
             @PathVariable UUID interviewId) {
 
+        log.info(">>> [CONTROLLER] HR requesting resend interview invitations: CandidateId={}, InterviewId={}", candidateId, interviewId);
         interviewService.resendInterviewInvitation(interviewId);
         return ResponseEntity.ok(ApiResponse.success("Interview invitations resent successfully to candidate and interviewer."));
     }

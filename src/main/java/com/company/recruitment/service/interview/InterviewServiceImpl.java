@@ -82,6 +82,8 @@ public class InterviewServiceImpl implements InterviewService {
         candidateRepository.save(candidate);
 
         // 4. Send dual automated emails (Candidate + Interviewer)
+        log.info(">>> [SERVICE] Triggering automated email dispatch for interview id={}, candidate id={}, interviewer='{}' <{}>",
+                interview.getId(), candidateId, interview.getInterviewerName(), interview.getInterviewerEmail());
         emailService.sendInterviewScheduleEmails(interview);
 
         // 5. Audit Logging
@@ -384,7 +386,9 @@ public class InterviewServiceImpl implements InterviewService {
     public void resendInterviewInvitation(UUID interviewId) {
         Interview interview = interviewRepository.findById(interviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Interview not found with id: " + interviewId));
-        log.info("Resending interview schedule invitations for interview id={}", interviewId);
+        log.info(">>> [SERVICE] Resending interview schedule invitations for interview id={}, candidate id={}, interviewer='{}' <{}>",
+                interviewId, interview.getCandidate() != null ? interview.getCandidate().getId() : null,
+                interview.getInterviewerName(), interview.getInterviewerEmail());
         emailService.sendInterviewScheduleEmails(interview);
     }
 

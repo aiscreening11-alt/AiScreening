@@ -102,6 +102,14 @@ public class ThymeleafEmailServiceImpl implements EmailService {
         java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy 'at' hh:mm a");
         String formattedDate = interview.getInterviewDate() != null ? interview.getInterviewDate().format(formatter) : "TBD";
 
+        log.info("================================================================================");
+        log.info(">>> [EMAIL DISPATCH] PORTAL TRIGGERING INTERVIEW SCHEDULE EMAILS");
+        log.info(">>> Candidate: {} <{}> | Job: {} | Round: {}",
+                candidate.getFullName(), getRecipientEmail(candidate), jobTitle, roundName);
+        log.info(">>> Scheduled Time: {} | Meeting Link: {}", formattedDate, interview.getMeetingLink());
+        log.info(">>> Interviewer: '{}' <{}>", interview.getInterviewerName(), interview.getInterviewerEmail());
+        log.info("================================================================================");
+
         // 1. Dispatch Candidate Email
         String candidateSubject = "Interview Scheduled: " + roundName + " – " + jobTitle + " | Sanvii Techmet";
         Context candidateContext = createContext(candidate, jobTitle);
@@ -136,11 +144,13 @@ public class ThymeleafEmailServiceImpl implements EmailService {
 
             String interviewerHtml = templateEngine.process("interviewer-interview-scheduled", interviewerContext);
             dispatchInterviewerEmail(candidate, interview.getInterviewerEmail(), EmailType.INTERVIEW_SCHEDULED_INTERVIEWER, interviewerSubject, interviewerHtml);
+        } else {
+            log.warn(">>> [EMAIL DISPATCH] Interviewer email was blank/null. Skipping interviewer notification for interview id={}", interview.getId());
         }
     }
 
     private void dispatchInterviewerEmail(Candidate candidate, String recipient, EmailType type, String subject, String htmlBody) {
-        log.info("Sending {} email to interviewer ({}) for candidate id={}", type, recipient, candidate.getId());
+        log.info(">>> [EMAIL DISPATCH] ATTEMPTING TO DELIVER INTERVIEWER EMAIL: Target='{}', Subject='{}'", recipient, subject);
 
         EmailCommunication comm = EmailCommunication.builder()
                 .candidate(candidate)
@@ -154,8 +164,9 @@ public class ThymeleafEmailServiceImpl implements EmailService {
         try {
             gmailClient.sendHtmlEmail(recipient, subject, htmlBody);
             comm.setSentStatus(EmailStatus.SENT);
+            log.info(">>> [EMAIL DISPATCH SUCCESS] INTERVIEWER EMAIL DELIVERED TO: '{}'", recipient);
         } catch (Exception e) {
-            log.error("Failed to send {} email to interviewer {}: {}", type, recipient, e.getMessage());
+            log.error(">>> [EMAIL DISPATCH FAILURE] FAILED TO DELIVER INTERVIEWER EMAIL TO '{}': {}", recipient, e.getMessage(), e);
             comm.setSentStatus(EmailStatus.FAILED);
             comm.setErrorMessage(e.getMessage());
         }
@@ -166,7 +177,7 @@ public class ThymeleafEmailServiceImpl implements EmailService {
 
     private void dispatchEmail(Candidate candidate, EmailType type, String subject, String htmlBody) {
         String recipient = getRecipientEmail(candidate);
-        log.info("Sending {} email to candidate id={} ({})", type, candidate.getId(), recipient);
+        log.info(">>> [EMAIL DISPATCH] ATTEMPTING TO DELIVER CANDIDATE EMAIL: Target='{}', Subject='{}'", recipient, subject);
 
         EmailCommunication comm = EmailCommunication.builder()
                 .candidate(candidate)
@@ -180,8 +191,9 @@ public class ThymeleafEmailServiceImpl implements EmailService {
         try {
             gmailClient.sendHtmlEmail(recipient, subject, htmlBody);
             comm.setSentStatus(EmailStatus.SENT);
+            log.info(">>> [EMAIL DISPATCH SUCCESS] CANDIDATE EMAIL DELIVERED TO: '{}'", recipient);
         } catch (Exception e) {
-            log.error("Failed to send {} email to {}: {}", type, recipient, e.getMessage());
+            log.error(">>> [EMAIL DISPATCH FAILURE] FAILED TO DELIVER CANDIDATE EMAIL TO '{}': {}", recipient, e.getMessage(), e);
             comm.setSentStatus(EmailStatus.FAILED);
             comm.setErrorMessage(e.getMessage());
         }

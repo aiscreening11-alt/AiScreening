@@ -172,19 +172,29 @@ public class GmailClientImpl implements GmailClient {
 
     @Override
     public void sendHtmlEmail(String recipientEmail, String subject, String htmlBody) {
+        log.info("--------------------------------------------------------------------------------");
+        log.info(">>> [GMAIL CLIENT] STARTING EMAIL TRANSMISSION");
+        log.info(">>> [GMAIL CLIENT] Recipient : {}", recipientEmail);
+        log.info(">>> [GMAIL CLIENT] Subject   : {}", subject);
+        log.info(">>> [GMAIL CLIENT] From Email: {}", recruitmentEmail);
+        log.info(">>> [GMAIL CLIENT] Status    : OAuth Service Available = {}, SMTP Password Configured = {}",
+                (authService.getGmailService() != null), (mailPassword != null && !mailPassword.isBlank()));
+        log.info("--------------------------------------------------------------------------------");
+
         // Mode 1: Dispatch via Google Gmail OAuth API if authorized
         Gmail service = authService.getGmailService();
         if (service != null) {
             try {
+                log.info(">>> [GMAIL CLIENT] Attempting delivery via Google Gmail OAuth API to '{}'...", recipientEmail);
                 String senderEmail = recruitmentEmail;
                 try {
                     Profile profile = service.users().getProfile(USER_ID).execute();
                     if (profile != null && profile.getEmailAddress() != null && !profile.getEmailAddress().isBlank()) {
                         senderEmail = profile.getEmailAddress();
-                        log.info("Resolved authenticated Gmail sender address: {}", senderEmail);
+                        log.info(">>> [GMAIL CLIENT] Resolved authenticated Google profile address: {}", senderEmail);
                     }
                 } catch (Exception ex) {
-                    log.warn("Could not retrieve Gmail profile email address ({}), falling back to configured: {}", ex.getMessage(), recruitmentEmail);
+                    log.warn(">>> [GMAIL CLIENT] Could not retrieve Google profile address ({}), using: {}", ex.getMessage(), recruitmentEmail);
                 }
 
                 Session session = Session.getDefaultInstance(new Properties(), null);
@@ -202,21 +212,21 @@ public class GmailClientImpl implements GmailClient {
                 Message message = new Message();
                 message.setRaw(encodedEmail);
                 service.users().messages().send(USER_ID, message).execute();
-                log.info("Successfully dispatched email via Gmail OAuth API to '{}'", recipientEmail);
+                log.info(">>> [GMAIL CLIENT - SUCCESS] Successfully transmitted email via Gmail OAuth API to '{}'", recipientEmail);
                 return;
 
             } catch (com.google.api.client.auth.oauth2.TokenResponseException tre) {
-                log.warn("Google OAuth token expired or revoked when sending email to {}: {}", recipientEmail, tre.getMessage());
+                log.warn(">>> [GMAIL CLIENT] Google OAuth token expired or revoked for {}: {}", recipientEmail, tre.getMessage());
                 authService.purgeStoredCredential();
             } catch (Exception ex) {
-                log.warn("Gmail OAuth API dispatch failed for {}: {}. Checking for SMTP fallback...", recipientEmail, ex.getMessage());
+                log.warn(">>> [GMAIL CLIENT] Gmail OAuth API delivery failed for {}: {}. Checking for SMTP fallback...", recipientEmail, ex.getMessage());
             }
         }
 
         // Mode 2: Dispatch via Gmail SMTP (Spring Mail) if MAIL_PASSWORD configured
         if (mailSender != null && mailPassword != null && !mailPassword.isBlank()) {
             try {
-                log.info("Dispatching email via Gmail SMTP (tls) to '{}'", recipientEmail);
+                log.info(">>> [GMAIL CLIENT] Attempting delivery via Gmail SMTP (smtp.gmail.com:587 TLS) to '{}'...", recipientEmail);
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
                 helper.setFrom(new InternetAddress(recruitmentEmail, "Sanvii ATS Recruitment"));
@@ -224,10 +234,10 @@ public class GmailClientImpl implements GmailClient {
                 helper.setSubject(subject);
                 helper.setText(htmlBody, true);
                 mailSender.send(message);
-                log.info("Successfully dispatched email via Gmail SMTP to '{}'", recipientEmail);
+                log.info(">>> [GMAIL CLIENT - SUCCESS] Successfully transmitted email via Gmail SMTP to '{}'", recipientEmail);
                 return;
             } catch (Exception smtpEx) {
-                log.error("Failed to send email via SMTP to {}: {}", recipientEmail, smtpEx.getMessage(), smtpEx);
+                log.error(">>> [GMAIL CLIENT - ERROR] Failed to send email via SMTP to {}: {}", recipientEmail, smtpEx.getMessage(), smtpEx);
                 throw new GmailIntegrationException("SMTP email delivery to " + recipientEmail + " failed: " + smtpEx.getMessage(), smtpEx);
             }
         }
@@ -235,7 +245,7 @@ public class GmailClientImpl implements GmailClient {
         // Neither mode available
         String errorMsg = "Cannot dispatch email to " + recipientEmail + ": Gmail OAuth is not authorized and SMTP password is not set. " +
                 "Authorize at /api/v1/gmail/authorize or set MAIL_PASSWORD (16-char Gmail App Password) in your Render environment variables.";
-        log.error(errorMsg);
+        log.error(">>> [GMAIL CLIENT - ERROR] {}", errorMsg);
         throw new GmailIntegrationException(errorMsg);
     }
 
