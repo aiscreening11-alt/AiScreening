@@ -2,9 +2,11 @@ package com.company.recruitment.service;
 
 import com.company.recruitment.dto.request.JobRequestDto;
 import com.company.recruitment.dto.response.JobResponseDto;
+import com.company.recruitment.entity.Candidate;
 import com.company.recruitment.entity.Job;
 import com.company.recruitment.exception.JobNotFoundException;
 import com.company.recruitment.mapper.JobMapper;
+import com.company.recruitment.repository.CandidateRepository;
 import com.company.recruitment.repository.JobRepository;
 import com.company.recruitment.service.audit.AuditLogService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class JobServiceImpl implements JobService {
     private final JobRepository jobRepository;
     private final JobMapper jobMapper;
     private final AuditLogService auditLogService;
+    private final CandidateRepository candidateRepository;
 
     @Override
     @Transactional
@@ -76,11 +79,41 @@ public class JobServiceImpl implements JobService {
     @Override
     @Transactional
     public void deleteJob(UUID id) {
-        log.info("Closing/Deleting job: id={}", id);
+        deleteJob(id, false);
+    }
+
+    @Override
+    @Transactional
+    public void deleteJob(UUID id, boolean permanent) {
+        log.info("Closing/Deleting job: id={}, permanent={}", id, permanent);
         Job job = getJobEntityById(id);
-        job.setStatus("CLOSED");
-        jobRepository.save(job);
-        auditLogService.logAction("Job", job.getId().toString(), "CLOSE_JOB", "RECRUITER", "ACTIVE", "CLOSED", "Closed job posting");
+        String oldStatus = job.getStatus();
+
+        if (permanent) {
+            List<Candidate> candidates = candidateRepository.findByJobId(id);
+            if (!candidates.isEmpty()) {
+                log.info("Removing {} candidates associated with job {}", candidates.size(), id);
+                candidateRepository.deleteAll(candidates);
+            }
+            jobRepository.delete(job);
+            auditLogService.logAction("Job", id.toString(), "DELETE_JOB_PERMANENT", "RECRUITER", oldStatus, "DELETED", "Permanently deleted job: " + job.getJobTitle());
+        } else {
+            job.setStatus("CLOSED");
+            jobRepository.save(job);
+            auditLogService.logAction("Job", job.getId().toString(), "CLOSE_JOB", "RECRUITER", oldStatus, "CLOSED", "Closed/Archived job: " + job.getJobTitle());
+        }
+    }
+
+    @Override
+    @Transactional
+    public JobResponseDto updateJobStatus(UUID id, String status) {
+        log.info("Updating status for job {}: {}", id, status);
+        Job job = getJobEntityById(id);
+        String oldStatus = job.getStatus();
+        job.setStatus(status.toUpperCase());
+        Job saved = jobRepository.save(job);
+        auditLogService.logAction("Job", saved.getId().toString(), "UPDATE_STATUS", "RECRUITER", oldStatus, saved.getStatus(), "Updated job status to " + saved.getStatus());
+        return jobMapper.toResponseDto(saved);
     }
 
     @Override

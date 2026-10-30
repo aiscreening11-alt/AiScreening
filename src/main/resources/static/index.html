@@ -323,6 +323,52 @@
         employmentType: 'FULL_TIME'
       });
 
+      // Job Deletion & Status Management State
+      const [jobToDelete, setJobToDelete] = useState(null);
+      const [deletingJob, setDeletingJob] = useState(false);
+
+      const handleDeleteJob = async (jobId, isPermanent) => {
+        if (!auth) return;
+        setDeletingJob(true);
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/jobs/${jobId}?permanent=${isPermanent ? 'true' : 'false'}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(auth)
+          });
+          const json = await res.json();
+          if (res.ok) {
+            showToast(isPermanent ? 'Job opening permanently deleted.' : 'Job opening closed & archived successfully.', 'success');
+            setJobToDelete(null);
+            fetchData();
+          } else {
+            showToast(json.message || 'Failed to delete job', 'error');
+          }
+        } catch (e) {
+          showToast('Error deleting job: ' + e.message, 'error');
+        } finally {
+          setDeletingJob(false);
+        }
+      };
+
+      const handleUpdateJobStatus = async (jobId, newStatus) => {
+        if (!auth) return;
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/jobs/${jobId}/status?status=${newStatus}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(auth)
+          });
+          const json = await res.json();
+          if (res.ok) {
+            showToast(`Job status updated to ${newStatus}.`, 'success');
+            fetchData();
+          } else {
+            showToast(json.message || 'Failed to update job status', 'error');
+          }
+        } catch (e) {
+          showToast('Error updating job status: ' + e.message, 'error');
+        }
+      };
+
       const showToast = (message, type = 'info') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 4500);
@@ -732,8 +778,11 @@
             {activeTab === 'jobs' && (
               <JobsView
                 jobs={jobs}
+                candidates={candidates}
                 onOpenCreate={() => setShowCreateJobModal(true)}
                 onRefresh={fetchData}
+                onDeleteJob={(job) => setJobToDelete(job)}
+                onUpdateJobStatus={handleUpdateJobStatus}
               />
             )}
 
@@ -809,6 +858,8 @@
                 }
               }}
               showToast={showToast}
+              jobs={jobs}
+              onDeleteJob={(job) => setJobToDelete(job)}
             />
           )}
 
@@ -922,6 +973,17 @@
                   showToast(e.message, 'error');
                 }
               }}
+            />
+          )}
+
+          {/* Delete / Close Job Opening Modal (HR Rights) */}
+          {jobToDelete && (
+            <DeleteJobModal
+              job={jobToDelete}
+              candidates={candidates}
+              loading={deletingJob}
+              onClose={() => setJobToDelete(null)}
+              onConfirm={handleDeleteJob}
             />
           )}
 
@@ -1336,24 +1398,56 @@
     // ==========================================
     // 2. JOBS VIEW
     // ==========================================
-    function JobsView({ jobs, onOpenCreate, onRefresh }) {
+    function JobsView({ jobs, candidates, onOpenCreate, onRefresh, onDeleteJob, onUpdateJobStatus }) {
+      const [filterStatus, setFilterStatus] = useState('ACTIVE'); // 'ACTIVE', 'CLOSED', 'ALL'
+      const [searchQuery, setSearchQuery] = useState('');
+
+      const activeJobs = useMemo(() => (jobs || []).filter(j => j.status === 'ACTIVE' || !j.status), [jobs]);
+      const closedJobs = useMemo(() => (jobs || []).filter(j => j.status === 'CLOSED'), [jobs]);
+
+      const displayedJobs = useMemo(() => {
+        let list = jobs || [];
+        if (filterStatus === 'ACTIVE') {
+          list = activeJobs;
+        } else if (filterStatus === 'CLOSED') {
+          list = closedJobs;
+        }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          list = list.filter(j => 
+            (j.jobTitle && j.jobTitle.toLowerCase().includes(q)) ||
+            (j.department && j.department.toLowerCase().includes(q)) ||
+            (j.location && j.location.toLowerCase().includes(q))
+          );
+        }
+        return list;
+      }, [jobs, filterStatus, searchQuery, activeJobs, closedJobs]);
+
       return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
+          {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Active Job Openings</h2>
-              <p className="text-xs text-slate-500 mt-1">Open positions receiving candidate resumes and LinkedIn email applications</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Job Openings &amp; Roles</h2>
+                <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+                  {activeJobs.length} Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Manage open positions, review applicant progress, and remove or close job postings when candidates are selected
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={onRefresh}
-                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 shadow-sm"
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 shadow-sm transition"
               >
                 🔄 Refresh
               </button>
               <button
                 onClick={onOpenCreate}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 flex items-center gap-2 transition"
               >
                 <span>➕</span>
                 <span>Create New Job</span>
@@ -1361,58 +1455,208 @@
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {jobs.map(job => (
-              <div key={job.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase">
-                      {job.department || 'Engineering'}
-                    </span>
-                    <h3 className="text-lg font-bold text-slate-900 mt-2">{job.jobTitle}</h3>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      📍 {job.location || 'Remote'} &bull; ⏱️ {job.employmentType || 'FULL_TIME'} &bull; Min Exp: {job.minimumExperience} yrs
-                    </div>
-                  </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                    job.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
+          {/* Filter Bar & Search */}
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+              {[
+                { id: 'ACTIVE', label: 'Active Positions', count: activeJobs.length, icon: '🟢' },
+                { id: 'CLOSED', label: 'Closed / Filled', count: closedJobs.length, icon: '🔒' },
+                { id: 'ALL', label: 'All Jobs', count: (jobs || []).length, icon: '📋' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterStatus(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                    filterStatus === tab.id
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    filterStatus === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
                   }`}>
-                    {job.status}
+                    {tab.count}
                   </span>
-                </div>
+                </button>
+              ))}
+            </div>
 
-                <p className="text-xs text-slate-600 line-clamp-2 my-3">
-                  {job.description}
-                </p>
+            <div className="relative min-w-[240px]">
+              <input
+                type="text"
+                placeholder="Search job title, department, location..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full text-xs px-3.5 py-2 pl-8 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+            </div>
+          </div>
 
-                {/* Required Skills */}
-                <div className="mt-4">
-                  <div className="text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1.5">Required Skills (80% Weight)</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(job.requiredSkills || []).map((sk, idx) => (
-                      <span key={idx} className="text-xs bg-slate-100 text-slate-800 font-medium px-2 py-0.5 rounded-md border border-slate-200">
-                        {sk}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+          {/* Job Cards Grid */}
+          {displayedJobs.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-3">
+              <div className="text-4xl">📂</div>
+              <h3 className="font-bold text-slate-800 text-base">No job openings found</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                {filterStatus === 'CLOSED'
+                  ? 'No closed or filled jobs in archive yet. When candidate hiring is completed, HR can close or remove jobs here.'
+                  : 'No active job openings currently open. Click "Create New Job" to post an opening.'}
+              </p>
+              {filterStatus !== 'ALL' && (
+                <button
+                  onClick={() => setFilterStatus('ALL')}
+                  className="mt-2 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 font-bold text-xs"
+                >
+                  View All Jobs
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {displayedJobs.map(job => {
+                const applicants = (candidates || []).filter(c => c.jobId === job.id || c.job?.id === job.id);
+                const selected = applicants.filter(c => c.status === 'SELECTED');
+                const isClosed = job.status === 'CLOSED';
 
-                {/* Preferred Skills */}
-                {job.preferredSkills?.length > 0 && (
-                  <div className="mt-3">
-                    <div className="text-[11px] uppercase tracking-wider font-bold text-slate-400 mb-1.5">Preferred Skills (20% Weight)</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {job.preferredSkills.map((sk, idx) => (
-                        <span key={idx} className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded-md border border-indigo-100">
-                          {sk}
+                return (
+                  <div
+                    key={job.id}
+                    className={`bg-white rounded-2xl p-6 border transition shadow-sm hover:shadow-md flex flex-col justify-between ${
+                      isClosed ? 'border-slate-300 opacity-90' : 'border-slate-200'
+                    }`}
+                  >
+                    <div>
+                      {/* Top Header */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            {job.department || 'Engineering'}
+                          </span>
+                          <h3 className="text-lg font-bold text-slate-900 mt-2 leading-snug">
+                            {job.jobTitle}
+                          </h3>
+                          <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                            <span>📍 {job.location || 'Remote'}</span>
+                            <span>&bull;</span>
+                            <span>⏱️ {job.employmentType || 'FULL_TIME'}</span>
+                            <span>&bull;</span>
+                            <span>Min Exp: {job.minimumExperience} yrs</span>
+                          </div>
+                        </div>
+
+                        <span className={`text-[11px] px-2.5 py-1 rounded-full font-extrabold tracking-wide uppercase shrink-0 ${
+                          job.status === 'ACTIVE'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-300'
+                        }`}>
+                          {job.status === 'ACTIVE' ? '🟢 Active' : '🔒 Closed / Filled'}
                         </span>
-                      ))}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-slate-600 line-clamp-2 my-2.5">
+                        {job.description || 'No description provided.'}
+                      </p>
+
+                      {/* Skills */}
+                      <div className="mt-3">
+                        <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 mb-1">
+                          Required Skills
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(job.requiredSkills || []).slice(0, 5).map((sk, idx) => (
+                            <span key={idx} className="text-[11px] bg-slate-100 text-slate-800 font-medium px-2 py-0.5 rounded-md border border-slate-200">
+                              {sk}
+                            </span>
+                          ))}
+                          {(job.requiredSkills || []).length > 5 && (
+                            <span className="text-[10px] text-slate-400 font-bold self-center">
+                              +{job.requiredSkills.length - 5} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Candidate Selection Highlight */}
+                      {selected.length > 0 && (
+                        <div className="mt-3.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🎉</span>
+                            <div className="text-xs">
+                              <span className="font-extrabold text-emerald-700">Hiring Goal Achieved!</span>
+                              <div className="text-[11px] text-slate-600">
+                                <strong>{selected[0].fullName}</strong> selected ({selected.length} hired)
+                              </div>
+                            </div>
+                          </div>
+                          {!isClosed && (
+                            <span className="text-[10px] uppercase font-bold bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded">
+                              Ready to Close
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Action Footer with HR Rights */}
+                    <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                        <span>👥</span>
+                        <span><strong>{applicants.length}</strong> applicant{applicants.length === 1 ? '' : 's'}</span>
+                        {selected.length > 0 && (
+                          <span className="text-emerald-600 font-bold">&bull; {selected.length} Selected</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isClosed ? (
+                          <>
+                            {onUpdateJobStatus && (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateJobStatus(job.id, 'ACTIVE')}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1"
+                                title="Reopen this job position"
+                              >
+                                <span>🔄</span>
+                                <span>Reopen</span>
+                              </button>
+                            )}
+                            {onDeleteJob && (
+                              <button
+                                type="button"
+                                onClick={() => onDeleteJob(job)}
+                                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/30 text-xs font-bold transition flex items-center gap-1"
+                                title="Permanently delete this job post"
+                              >
+                                <span>❌</span>
+                                <span>Delete</span>
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          onDeleteJob && (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteJob(job)}
+                              className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 hover:text-red-600 border border-red-500/30 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                              title="HR action: Close or remove this job opening"
+                            >
+                              <span>🗑️</span>
+                              <span>Close / Remove Job</span>
+                            </button>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }
@@ -2556,8 +2800,9 @@
     // ==========================================
     // 6. CANDIDATE DETAIL MODAL
     // ==========================================
-    function CandidateDetailModal({ candidateId, candidateSummary, candidateDetail, loading, onClose, onPreviewEmail, onOpenSchedule, onOpenDecision, onOpenInterview, showToast }) {
+    function CandidateDetailModal({ candidateId, candidateSummary, candidateDetail, loading, onClose, onPreviewEmail, onOpenSchedule, onOpenDecision, onOpenInterview, showToast, jobs, onDeleteJob }) {
       const c = candidateDetail || candidateSummary;
+      const candidateJob = (jobs || []).find(j => j.id === c.jobId || j.id === c.job?.id || (c.jobTitle && j.jobTitle && j.jobTitle.toLowerCase() === c.jobTitle.toLowerCase()));
 
       return (
         <div className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden animate-fade-in">
@@ -2609,11 +2854,58 @@
 
             {/* Complete Screen Scrollable Body with 2-Column Responsive Layout */}
             <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar bg-slate-100/80">
-              <div className="max-w-7xl mx-auto">
+              <div className="max-w-7xl mx-auto space-y-6">
                 {loading ? (
                   <div className="py-24 text-center text-slate-400 font-semibold text-base">Loading candidate details...</div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <>
+                    {/* Hiring Goal Achieved / Job Removal Banner for HR */}
+                    {c.status === 'SELECTED' && (
+                      <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-emerald-400/40 animate-fade-in">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                            🎉
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-950/70 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
+                                Hiring Goal Achieved
+                              </span>
+                              <span className="text-xs text-emerald-100 font-medium">Candidate Hired &amp; Selected</span>
+                            </div>
+                            <h3 className="text-lg font-black text-white mt-0.5">
+                              {c.fullName || 'Candidate'} has been selected for {candidateJob?.jobTitle || c.jobTitle || 'this position'}!
+                            </h3>
+                            <p className="text-xs text-emerald-100/90 mt-1 max-w-2xl leading-relaxed">
+                              Position requirements have been successfully fulfilled. As an HR administrator, you can now close and archive this job posting or remove it from the active openings pipeline.
+                            </p>
+                          </div>
+                        </div>
+                        {onDeleteJob && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (candidateJob) {
+                                onDeleteJob(candidateJob);
+                              } else {
+                                onDeleteJob({
+                                  id: c.jobId || c.job?.id,
+                                  jobTitle: c.jobTitle || c.job?.jobTitle || 'Selected Job Position',
+                                  department: c.job?.department || 'Recruitment',
+                                  status: 'OPEN'
+                                });
+                              }
+                            }}
+                            className="px-5 py-3 rounded-xl bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-black shadow-lg transition flex items-center gap-2 shrink-0 border border-white/50 hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            <span>🗑️</span>
+                            <span>Close / Remove Job Post &rarr;</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Left Column (7 cols): Pipeline, Interview Workflow, History */}
                     <div className="lg:col-span-7 space-y-6">
                       {/* Status Banner */}
@@ -3082,6 +3374,7 @@
                       </div>
                     </div>
                   </div>
+                  </>
                 )}
               </div>
             </div>
@@ -4615,6 +4908,197 @@
                   className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30"
                 >
                   Publish Job
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 9B. DELETE / CLOSE JOB MODAL (HR RIGHTS)
+    // ==========================================
+    function DeleteJobModal({ job, candidates, loading, onClose, onConfirm }) {
+      const [deleteType, setDeleteType] = useState('soft');
+      const [confirmText, setConfirmText] = useState('');
+
+      if (!job) return null;
+
+      const jobCandidates = (candidates || []).filter(c => c.jobId === job.id || c.job?.id === job.id || (c.jobTitle && job.jobTitle && c.jobTitle.toLowerCase() === job.jobTitle.toLowerCase()));
+      const selectedCount = jobCandidates.filter(c => c.status === 'SELECTED').length;
+      const requiresConfirmation = deleteType === 'permanent';
+      const isConfirmValid = !requiresConfirmation || confirmText.trim().toUpperCase() === 'DELETE';
+
+      const handleConfirm = () => {
+        if (!isConfirmValid) return;
+        onConfirm(job.id, deleteType === 'permanent');
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className={`p-6 text-white flex items-center justify-between ${deleteType === 'permanent' ? 'bg-gradient-to-r from-rose-900 via-red-800 to-rose-900' : 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-inner ${deleteType === 'permanent' ? 'bg-rose-500/30 text-rose-200' : 'bg-blue-500/30 text-blue-200'}`}>
+                  {deleteType === 'permanent' ? '⚠️' : '📦'}
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">HR Job Opening Administration</span>
+                  <h3 className="font-bold text-lg text-white">
+                    {deleteType === 'permanent' ? 'Permanently Delete Job Opening' : 'Close & Archive Job Post'}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                disabled={loading}
+                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-lg font-bold transition"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              {/* Target Job Info Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 text-base">{job.jobTitle}</h4>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${job.status === 'OPEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                      {job.status || 'OPEN'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1 flex items-center gap-3">
+                    <span>🏢 {job.department || 'General'}</span>
+                    <span>&bull;</span>
+                    <span>👥 {jobCandidates.length} applicant{jobCandidates.length === 1 ? '' : 's'}</span>
+                    {selectedCount > 0 && (
+                      <>
+                        <span>&bull;</span>
+                        <span className="text-emerald-600 font-bold">🎉 {selectedCount} Selected</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {selectedCount > 0 && (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2.5">
+                  <span className="text-lg">🎉</span>
+                  <div>
+                    <span className="font-bold">Candidate Selected!</span> This position has {selectedCount} hired candidate{selectedCount === 1 ? '' : 's'}. Closing this job will remove it from active applicant pipelines while keeping all candidate interview logs safe.
+                  </div>
+                </div>
+              )}
+
+              {/* Action Mode Radio Cards */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Choose HR Action</label>
+
+                {/* Option 1: Soft Archive (Recommended) */}
+                <div
+                  onClick={() => setDeleteType('soft')}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3.5 ${deleteType === 'soft' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                >
+                  <input
+                    type="radio"
+                    name="deleteOption"
+                    checked={deleteType === 'soft'}
+                    onChange={() => setDeleteType('soft')}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">Close & Archive Position</span>
+                      <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Recommended</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      Changes job status to <strong>CLOSED</strong>. Hides position from active applicant views. Preserves all candidates, interview evaluations, scores, and Gmail audit trails. You can reopen it at any time.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option 2: Hard Delete */}
+                <div
+                  onClick={() => setDeleteType('permanent')}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3.5 ${deleteType === 'permanent' ? 'border-rose-600 bg-rose-50/50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                >
+                  <input
+                    type="radio"
+                    name="deleteOption"
+                    checked={deleteType === 'permanent'}
+                    onChange={() => setDeleteType('permanent')}
+                    className="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-rose-900">Permanently Erase Job</span>
+                      <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">Irreversible</span>
+                    </div>
+                    <p className="text-xs text-rose-600/90 mt-1 leading-relaxed">
+                      Completely purges this job opening and its associated records from the PostgreSQL database. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirmation input for permanent delete */}
+              {deleteType === 'permanent' && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-2 animate-fade-in">
+                  <label className="block text-xs font-bold text-rose-800">
+                    Type <span className="font-mono uppercase bg-rose-200 px-1 py-0.5 rounded">DELETE</span> to confirm permanent erasure:
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="Type DELETE to confirm"
+                    className="w-full text-sm px-3 py-2 border border-rose-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white font-mono"
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={loading || !isConfirmValid}
+                  className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg transition flex items-center gap-2 ${
+                    loading || !isConfirmValid
+                      ? 'bg-slate-300 cursor-not-allowed shadow-none'
+                      : deleteType === 'permanent'
+                      ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/30'
+                      : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <span className="animate-spin text-base">&bull;</span>
+                      <span>Processing...</span>
+                    </>
+                  ) : deleteType === 'permanent' ? (
+                    <>
+                      <span>🗑️</span>
+                      <span>Permanently Delete</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📦</span>
+                      <span>Close & Archive Job</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

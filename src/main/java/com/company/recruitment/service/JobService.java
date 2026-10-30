@@ -14,5 +14,7 @@ public interface JobService {
     List<JobResponseDto> getAllJobs(String status);
     JobResponseDto updateJob(UUID id, JobRequestDto request);
     void deleteJob(UUID id);
+    void deleteJob(UUID id, boolean permanent);
+    JobResponseDto updateJobStatus(UUID id, String status);
     Job findActiveJobByTitleOrKeyword(String text);
 }

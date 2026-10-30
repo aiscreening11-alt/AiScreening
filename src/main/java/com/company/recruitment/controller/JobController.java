@@ -47,8 +47,18 @@ public class JobController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteJob(@PathVariable UUID id) {
-        jobService.deleteJob(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Job closed/deleted successfully"));
+    public ResponseEntity<ApiResponse<Void>> deleteJob(
+            @PathVariable UUID id,
+            @RequestParam(required = false, defaultValue = "false") boolean permanent) {
+        jobService.deleteJob(id, permanent);
+        return ResponseEntity.ok(ApiResponse.success(null, permanent ? "Job permanently deleted successfully" : "Job closed/archived successfully"));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<JobResponseDto>> updateJobStatus(
+            @PathVariable UUID id,
+            @RequestParam String status) {
+        JobResponseDto updated = jobService.updateJobStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Job status updated to " + status));
     }
 }
