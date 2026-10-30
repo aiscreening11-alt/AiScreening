@@ -2401,475 +2401,535 @@
       const c = candidateDetail || candidateSummary;
 
       return (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-slide-left">
-            {/* Header */}
-            <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Candidate Profile</span>
-                <h2 className="text-xl font-black mt-1">{c.fullName || 'Applicant Profile'}</h2>
-                <div className="text-xs text-slate-400 mt-0.5">{c.email || c.senderEmail || c.resumeEmail}</div>
+        <div className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm flex flex-col overflow-hidden animate-fade-in">
+          <div className="w-full h-full bg-slate-50 flex flex-col overflow-hidden">
+            {/* Full-Width Header */}
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shadow-md shrink-0">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={onClose}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 border border-slate-700 transition shadow-sm hover:text-white"
+                  title="Close and return to dashboard"
+                >
+                  <span>&larr;</span>
+                  <span>Back to Candidates</span>
+                </button>
+                <div className="h-6 w-px bg-slate-700 hidden sm:block"></div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold text-blue-400 uppercase tracking-wider bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/60">Candidate Profile</span>
+                    {c.status && <span>{renderStatusBadge(c.status)}</span>}
+                  </div>
+                  <h2 className="text-xl font-black text-white mt-0.5 flex items-center gap-2">
+                    {c.fullName || 'Applicant Profile'}
+                    <span className="text-xs font-medium text-slate-400">({c.jobTitle || c.job?.jobTitle || 'Open Position'})</span>
+                  </h2>
+                  <div className="text-xs text-slate-400">{c.email || c.senderEmail || c.resumeEmail}</div>
+                </div>
               </div>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+
+              <div className="flex items-center gap-3">
+                {canScheduleInterview(c) && !getActiveScheduledInterview(c) && (
+                  <button
+                    onClick={() => onOpenSchedule ? onOpenSchedule(c) : onOpenInterview()}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-1.5 transition"
+                  >
+                    <span>⚡</span>
+                    <span>Schedule Interview &rarr;</span>
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-xl font-bold transition border border-slate-700"
+                  title="Close Profile"
+                >
+                  &times;
+                </button>
+              </div>
             </div>
 
-            {/* Scrollable Body */}
-            <div className="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-6">
-              {loading ? (
-                <div className="py-20 text-center text-slate-400">Loading candidate details...</div>
-              ) : (
-                <>
-                  {/* Status Banner */}
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                    <div>
-                      <div className="text-xs text-slate-500 font-semibold uppercase">Current Pipeline Status</div>
-                      <div className="mt-1">{renderStatusBadge(c.status)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-slate-500 font-semibold uppercase text-right">ATS Match Score</div>
-                      <div className="mt-1 text-right">{renderScoreBadge(c.finalAtsScore ?? c.atsScore ?? c.atsResult?.finalScore)}</div>
-                    </div>
-                  </div>
-
-                  {/* Candidate Demographic & Profile Quick Info */}
-                  <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                    <div>
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Gender / Demographic</div>
-                      <div className="mt-1">{renderGenderBadge(c.gender)}</div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Experience</div>
-                      <div className="text-sm font-semibold text-slate-800 mt-1">
-                        {c.totalExperienceYears ? `${c.totalExperienceYears} years` : 'Not specified'}
+            {/* Complete Screen Scrollable Body with 2-Column Responsive Layout */}
+            <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar bg-slate-100/80">
+              <div className="max-w-7xl mx-auto">
+                {loading ? (
+                  <div className="py-24 text-center text-slate-400 font-semibold text-base">Loading candidate details...</div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Left Column (7 cols): Pipeline, Interview Workflow, History */}
+                    <div className="lg:col-span-7 space-y-6">
+                      {/* Status Banner */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                        <div>
+                          <div className="text-xs text-slate-500 font-semibold uppercase">Current Pipeline Status</div>
+                          <div className="mt-1">{renderStatusBadge(c.status)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-slate-500 font-semibold uppercase text-right">ATS Match Score</div>
+                          <div className="mt-1 text-right">{renderScoreBadge(c.finalAtsScore ?? c.atsScore ?? c.atsResult?.finalScore)}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Education / Degree</div>
-                      <div className="text-sm font-semibold text-slate-800 mt-1">
-                        {c.degree || c.education || 'Not specified'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Location</div>
-                      <div className="text-sm font-semibold text-slate-800 mt-1">
-                        {c.location || 'Remote / Unspecified'}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Multi-Round Stepper */}
-                  <InterviewStepper candidate={c} />
-
-                  {/* Active Scheduled Interview Card */}
-                  {(() => {
-                    const activeInterview = getActiveScheduledInterview(c);
-                    if (!activeInterview) return null;
-                    return (
-                      <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg shadow-md shadow-blue-500/30">
-                              🎥
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                                Active Scheduled Interview
-                              </span>
-                              <h4 className="font-black text-sm text-slate-900 mt-0.5">
-                                {activeInterview.roundDisplayName || formatRoundName(activeInterview.round)}
-                              </h4>
-                            </div>
-                          </div>
-                          <div className="text-right text-xs">
-                            <span className="text-slate-500">Scheduled: </span>
-                            <span className="font-bold text-slate-800">
-                              {activeInterview.interviewDate ? new Date(activeInterview.interviewDate).toLocaleString() : 'Pending'}
-                              {activeInterview.durationMinutes ? ` (${activeInterview.durationMinutes} mins)` : ''}
-                            </span>
+                      {/* Candidate Demographic & Profile Quick Info */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                        <div>
+                          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Demographic</div>
+                          <div className="mt-1">{renderGenderBadge(c.gender)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Experience</div>
+                          <div className="text-sm font-semibold text-slate-800 mt-1">
+                            {c.totalExperienceYears ? `${c.totalExperienceYears} years` : 'Not specified'}
                           </div>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                          <div className="p-2.5 rounded-xl bg-white/80 border border-blue-100">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase">Interviewer Assigned</div>
-                            <div className="font-semibold text-slate-800 mt-0.5">{activeInterview.interviewerName || 'Technical Evaluator'}</div>
-                            <div className="text-[11px] text-slate-500">{activeInterview.interviewerEmail || 'interviewer@sanvii.com'}</div>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-white/80 border border-blue-100 flex flex-col justify-between">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase">
-                              {activeInterview.meetingLink?.includes('meet.google.com') ? 'Google Meet Room' : 'Live Video Meeting Room'}
-                            </div>
-                            <div className="mt-1 flex items-center gap-2">
-                              {activeInterview.meetingLink ? (
-                                <>
-                                  <a
-                                    href={activeInterview.meetingLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition"
-                                  >
-                                    <span>🎥</span>
-                                    <span>{activeInterview.meetingLink.includes('meet.google.com') ? 'Join Google Meet' : 'Join Video Meeting Room'}</span>
-                                  </a>
-                                  <button
-                                    onClick={() => {
-                                      navigator.clipboard?.writeText(activeInterview.meetingLink);
-                                      if (showToast) showToast('Meeting link copied to clipboard!', 'info');
-                                    }}
-                                    title="Copy meeting link"
-                                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold"
-                                  >
-                                    📋 Copy
-                                  </button>
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        const res = await fetch(`${API_BASE}/api/v1/candidates/${c.id}/interviews/${activeInterview.id}/resend-invitations`, {
-                                          method: 'POST',
-                                          headers: getAuthHeaders(auth)
-                                        });
-                                        const json = await res.json();
-                                        if (res.ok && json.success) {
-                                          if (showToast) showToast('Interview email invitations dispatched successfully to candidate and interviewer!', 'success');
-                                        } else {
-                                          if (showToast) showToast(json.message || 'Failed to dispatch email invitations', 'error');
-                                        }
-                                      } catch(err) {
-                                        if (showToast) showToast('Error resending invitations: ' + err.message, 'error');
-                                      }
-                                    }}
-                                    title="Resend email notifications to Candidate and Interviewer"
-                                    className="p-1.5 px-2.5 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 shadow-sm transition"
-                                  >
-                                    <span>📧</span>
-                                    <span>Resend Emails</span>
-                                  </button>
-                                </>
-                              ) : (
-                                <span className="text-slate-400 italic">No link assigned</span>
-                              )}
-                            </div>
+                        <div>
+                          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Education / Degree</div>
+                          <div className="text-sm font-semibold text-slate-800 mt-1">
+                            {c.degree || c.education || 'Not specified'}
                           </div>
                         </div>
-
-                        <div className="pt-2 border-t border-blue-100 flex items-center justify-between">
-                          <span className="text-xs text-slate-500">Interview conducted? Record the evaluator's decision:</span>
-                          <button
-                            onClick={() => onOpenDecision ? onOpenDecision(c, activeInterview) : onOpenInterview()}
-                            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 flex items-center gap-1.5"
-                          >
-                            <span>📝</span>
-                            <span>Record Round Decision &rarr;</span>
-                          </button>
+                        <div>
+                          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Location</div>
+                          <div className="text-sm font-semibold text-slate-800 mt-1">
+                            {c.location || 'Remote / Unspecified'}
+                          </div>
                         </div>
                       </div>
-                    );
-                  })()}
 
-                  {/* Ready to Schedule Next Round Card */}
-                  {canScheduleInterview(c) && !getActiveScheduledInterview(c) && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between flex-wrap gap-3">
-                      <div>
-                        <div className="font-bold text-sm text-emerald-950 flex items-center gap-2">
-                          <span>📅</span>
-                          <span>Next Round Ready: {formatRoundName(getNextPendingRound(c))}</span>
-                        </div>
-                        <div className="text-xs text-emerald-700 mt-0.5">
-                          Candidate is eligible for the next interview round. Set up Google Meet and dual email invites.
-                        </div>
+                      {/* Multi-Round Stepper */}
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <InterviewStepper candidate={c} />
                       </div>
-                      <button
-                        onClick={() => onOpenSchedule ? onOpenSchedule(c) : onOpenInterview()}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-2"
-                      >
-                        <span>⚡ Schedule Interview &rarr;</span>
-                      </button>
-                    </div>
-                  )}
 
-                  {/* Final Status Celebration / Regret */}
-                  {c.status === 'SELECTED' && (
-                    <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center text-xl shadow-md">
-                        🎉
-                      </div>
-                      <div>
-                        <div className="font-black text-sm text-purple-950">Candidate Selected & Hired!</div>
-                        <div className="text-xs text-purple-700">All 4 rounds completed successfully. Official selection & offer letter has been dispatched.</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {c.status === 'NOT_SELECTED' && (
-                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xl shadow-md">
-                        🚫
-                      </div>
-                      <div>
-                        <div className="font-black text-sm text-rose-950">Candidate Not Selected</div>
-                        <div className="text-xs text-rose-700">Pipeline concluded. Graceful regret notification email dispatched.</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Multi-Round Interview History Timeline */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-xs uppercase text-slate-500 tracking-wider">
-                        Interview History & Notes ({c.interviews?.length || 0} Rounds)
-                      </h4>
-                      {canScheduleInterview(c) && !getActiveScheduledInterview(c) && (
-                        <button
-                          onClick={() => onOpenSchedule ? onOpenSchedule(c) : onOpenInterview()}
-                          className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                        >
-                          <span>+ Schedule Round</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {(c.interviews || []).map((inv, idx) => {
-                        const isPending = inv.result === 'PENDING';
-                        const isSelected = inv.result === 'SELECTED';
-                        const isNotSelected = inv.result === 'NOT_SELECTED';
-
+                      {/* Active Scheduled Interview Card */}
+                      {(() => {
+                        const activeInterview = getActiveScheduledInterview(c);
+                        if (!activeInterview) return null;
                         return (
-                          <div
-                            key={inv.id || idx}
-                            className={`p-4 rounded-2xl border transition ${
-                              isPending
-                                ? 'bg-blue-50/50 border-blue-200'
-                                : isSelected
-                                ? 'bg-emerald-50/30 border-emerald-200'
-                                : 'bg-slate-50 border-slate-200'
-                            }`}
-                          >
+                          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 shadow-sm space-y-3">
                             <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-slate-900">
-                                  {inv.roundDisplayName || formatRoundName(inv.round)}
-                                </span>
-                                {isPending && (
-                                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 animate-pulse">
-                                    🎥 Scheduled
-                                  </span>
-                                )}
-                                {isSelected && (
-                                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    ✓ Passed Round
-                                  </span>
-                                )}
-                                {isNotSelected && (
-                                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                                    ✕ Not Selected
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                {inv.interviewDate ? new Date(inv.interviewDate).toLocaleString() : 'Date pending'}
-                                {inv.durationMinutes ? ` (${inv.durationMinutes}m)` : ''}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs">
-                              <div>
-                                <span className="text-slate-500">Interviewer: </span>
-                                <span className="font-semibold text-slate-800">{inv.interviewerName || 'Lead Evaluator'}</span>
-                                {inv.interviewerEmail && (
-                                  <span className="text-slate-400 text-[11px] block">{inv.interviewerEmail}</span>
-                                )}
-                              </div>
-                              {inv.meetingLink && (
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg shadow-md shadow-blue-500/30">
+                                  🎥
+                                </div>
                                 <div>
-                                  <span className="text-slate-500">{inv.meetingLink.includes('meet.google.com') ? 'Google Meet: ' : 'Video Room: '}</span>
-                                  <a
-                                    href={inv.meetingLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="font-mono text-blue-600 hover:underline inline-flex items-center gap-1 text-[11px]"
-                                  >
-                                    <span>🎥</span>
-                                    <span>{inv.meetingLink.includes('meet.google.com') ? 'Join Google Meet &rarr;' : 'Join Video Room &rarr;'}</span>
-                                  </a>
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                                    Active Scheduled Interview
+                                  </span>
+                                  <h4 className="font-black text-sm text-slate-900 mt-0.5">
+                                    {activeInterview.roundDisplayName || formatRoundName(activeInterview.round)}
+                                  </h4>
                                 </div>
-                              )}
+                              </div>
+                              <div className="text-right text-xs">
+                                <span className="text-slate-500">Scheduled: </span>
+                                <span className="font-bold text-slate-800">
+                                  {activeInterview.interviewDate ? new Date(activeInterview.interviewDate).toLocaleString() : 'Pending'}
+                                  {activeInterview.durationMinutes ? ` (${activeInterview.durationMinutes} mins)` : ''}
+                                </span>
+                              </div>
                             </div>
 
-                            {inv.notes && (
-                              <div className="mt-2 text-xs bg-white/70 p-2.5 rounded-xl border border-slate-100 text-slate-600">
-                                <strong className="text-slate-700">Agenda / Instructions: </strong>
-                                {inv.notes}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                              <div className="p-2.5 rounded-xl bg-white/80 border border-blue-100">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase">Interviewer Assigned</div>
+                                <div className="font-semibold text-slate-800 mt-0.5">{activeInterview.interviewerName || 'Technical Evaluator'}</div>
+                                <div className="text-[11px] text-slate-500">{activeInterview.interviewerEmail || 'interviewer@sanvii.com'}</div>
                               </div>
-                            )}
-
-                            {/* Rich Interviewer Evaluation Scorecard */}
-                            {(inv.technicalRating || inv.overallRating || inv.feedback) && (
-                              <div className="mt-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-amber-500 font-black text-sm">⭐</span>
-                                    <span className="font-extrabold text-xs text-slate-900">
-                                      Interviewer Scorecard: {inv.overallRating ? `${inv.overallRating} / 5.0` : 'Feedback Recorded'}
-                                    </span>
-                                  </div>
-                                  {inv.result === 'SELECTED' ? (
-                                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                                      ✓ Good (Recommended to Advance)
-                                    </span>
-                                  ) : inv.result === 'NOT_SELECTED' ? (
-                                    <span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
-                                      ✕ Bad (Not Recommended)
-                                    </span>
-                                  ) : null}
+                              <div className="p-2.5 rounded-xl bg-white/80 border border-blue-100 flex flex-col justify-between">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase">
+                                  {activeInterview.meetingLink?.includes('meet.google.com') ? 'Google Meet Room' : 'Live Video Meeting Room'}
                                 </div>
-
-                                {inv.technicalRating && (
-                                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-slate-600 font-medium">Technical:</span>
-                                      <span className="font-bold text-slate-800 flex items-center gap-1">
-                                        <StarRatingDisplay value={inv.technicalRating} /> {inv.technicalRating}/5
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-slate-600 font-medium">Communication:</span>
-                                      <span className="font-bold text-slate-800 flex items-center gap-1">
-                                        <StarRatingDisplay value={inv.communicationRating} /> {inv.communicationRating}/5
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-slate-600 font-medium">Confidence:</span>
-                                      <span className="font-bold text-slate-800 flex items-center gap-1">
-                                        <StarRatingDisplay value={inv.confidenceRating} /> {inv.confidenceRating}/5
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-slate-600 font-medium">Body Language:</span>
-                                      <span className="font-bold text-slate-800 flex items-center gap-1">
-                                        <StarRatingDisplay value={inv.bodyLanguageRating} /> {inv.bodyLanguageRating}/5
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {(inv.comments || inv.feedback) && (
-                                  <div className="text-xs text-slate-700 bg-amber-50/40 p-2.5 rounded-xl border border-amber-200/50">
-                                    <span className="font-bold text-slate-900 block mb-1">💬 Interviewer Feedback & Comments:</span>
-                                    <p className="italic text-slate-700 font-sans leading-relaxed">"{inv.comments || inv.feedback}"</p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {isPending && (
-                              <div className="mt-3 pt-2.5 border-t border-blue-100 flex items-center justify-between flex-wrap gap-2">
-                                <span className="text-xs text-blue-700 font-semibold">Evaluation awaiting submission</span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => {
-                                      const token = inv.accessToken || inv.id;
-                                      window.open(`/?portal=interviewer&token=${token}`, '_blank');
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm flex items-center gap-1"
-                                    title="Open direct feedback submission portal link sent to interviewer"
-                                  >
-                                    <span>⭐</span>
-                                    <span>Interviewer Portal &rarr;</span>
-                                  </button>
-                                  <button
-                                    onClick={() => onOpenDecision ? onOpenDecision(c, inv) : onOpenInterview()}
-                                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm"
-                                  >
-                                    📝 Record HR Decision
-                                  </button>
+                                <div className="mt-1 flex items-center gap-2">
+                                  {activeInterview.meetingLink ? (
+                                    <>
+                                      <a
+                                        href={activeInterview.meetingLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition"
+                                      >
+                                        <span>🎥</span>
+                                        <span>{activeInterview.meetingLink.includes('meet.google.com') ? 'Join Google Meet' : 'Join Video Meeting Room'}</span>
+                                      </a>
+                                      <button
+                                        onClick={() => {
+                                          navigator.clipboard?.writeText(activeInterview.meetingLink);
+                                          if (showToast) showToast('Meeting link copied to clipboard!', 'info');
+                                        }}
+                                        title="Copy meeting link"
+                                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold"
+                                      >
+                                        📋 Copy
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            const res = await fetch(`${API_BASE}/api/v1/candidates/${c.id}/interviews/${activeInterview.id}/resend-invitations`, {
+                                              method: 'POST',
+                                              headers: getAuthHeaders(auth)
+                                            });
+                                            const json = await res.json();
+                                            if (res.ok && json.success) {
+                                              if (showToast) showToast('Interview email invitations dispatched successfully to candidate and interviewer!', 'success');
+                                            } else {
+                                              if (showToast) showToast(json.message || 'Failed to dispatch email invitations', 'error');
+                                            }
+                                          } catch(err) {
+                                            if (showToast) showToast('Error resending invitations: ' + err.message, 'error');
+                                          }
+                                        }}
+                                        title="Resend email notifications to Candidate and Interviewer"
+                                        className="p-1.5 px-2.5 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 shadow-sm transition"
+                                      >
+                                        <span>📧</span>
+                                        <span>Resend Emails</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-slate-400 italic">No link assigned</span>
+                                  )}
                                 </div>
                               </div>
-                            )}
+                            </div>
+
+                            <div className="pt-2 border-t border-blue-100 flex items-center justify-between">
+                              <span className="text-xs text-slate-500">Interview conducted? Record the evaluator's decision:</span>
+                              <button
+                                onClick={() => onOpenDecision ? onOpenDecision(c, activeInterview) : onOpenInterview()}
+                                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 flex items-center gap-1.5"
+                              >
+                                <span>📝</span>
+                                <span>Record Round Decision &rarr;</span>
+                              </button>
+                            </div>
                           </div>
                         );
-                      })}
+                      })()}
 
-                      {(!c.interviews || c.interviews.length === 0) && (
-                        <div className="text-xs text-slate-400 italic py-4 text-center bg-slate-50 rounded-2xl border border-slate-200">
-                          No interview rounds scheduled yet. Click "Schedule Interview" to initiate the pipeline.
+                      {/* Ready to Schedule Next Round Card */}
+                      {canScheduleInterview(c) && !getActiveScheduledInterview(c) && (
+                        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between flex-wrap gap-3">
+                          <div>
+                            <div className="font-bold text-sm text-emerald-950 flex items-center gap-2">
+                              <span>📅</span>
+                              <span>Next Round Ready: {formatRoundName(getNextPendingRound(c))}</span>
+                            </div>
+                            <div className="text-xs text-emerald-700 mt-0.5">
+                              Candidate is eligible for the next interview round. Set up Google Meet and dual email invites.
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => onOpenSchedule ? onOpenSchedule(c) : onOpenInterview()}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-2"
+                          >
+                            <span>⚡ Schedule Interview &rarr;</span>
+                          </button>
                         </div>
                       )}
-                    </div>
-                  </div>
 
-                  {/* ATS Scoring Breakdown */}
-                  {c.atsResult && (
-                    <div className="space-y-3">
-                      <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider text-xs">ATS Evaluation Breakdown</h4>
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                        <div className="text-xs text-slate-700 leading-relaxed">
-                          <strong>AI Summary:</strong> {c.atsResult.aiSummary || 'No AI summary available'}
+                      {/* Final Status Celebration / Regret */}
+                      {c.status === 'SELECTED' && (
+                        <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center text-xl shadow-md">
+                            🎉
+                          </div>
+                          <div>
+                            <div className="font-black text-sm text-purple-950">Candidate Selected & Hired!</div>
+                            <div className="text-xs text-purple-700">All 4 rounds completed successfully. Official selection & offer letter has been dispatched.</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {c.status === 'NOT_SELECTED' && (
+                        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xl shadow-md">
+                            🚫
+                          </div>
+                          <div>
+                            <div className="font-black text-sm text-rose-950">Candidate Not Selected</div>
+                            <div className="text-xs text-rose-700">Pipeline concluded. Graceful regret notification email dispatched.</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Multi-Round Interview History Timeline */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-xs uppercase text-slate-500 tracking-wider">
+                            Interview History & Notes ({c.interviews?.length || 0} Rounds)
+                          </h4>
+                          {canScheduleInterview(c) && !getActiveScheduledInterview(c) && (
+                            <button
+                              onClick={() => onOpenSchedule ? onOpenSchedule(c) : onOpenInterview()}
+                              className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                            >
+                              <span>+ Schedule Round</span>
+                            </button>
+                          )}
                         </div>
 
-                        {c.atsResult.matchedSkills?.length > 0 && (
-                          <div>
-                            <div className="text-[11px] font-bold text-emerald-800 uppercase mb-1">Matched Skills:</div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {c.atsResult.matchedSkills.map((sk, i) => (
-                                <span key={i} className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">✓ {sk}</span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        <div className="space-y-2.5">
+                          {(c.interviews || []).map((inv, idx) => {
+                            const isPending = inv.result === 'PENDING';
+                            const isSelected = inv.result === 'SELECTED';
+                            const isNotSelected = inv.result === 'NOT_SELECTED';
 
-                        {c.atsResult.missingSkills?.length > 0 && (
-                          <div>
-                            <div className="text-[11px] font-bold text-rose-800 uppercase mb-1">Missing Job Requirements:</div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {c.atsResult.missingSkills.map((sk, i) => (
-                                <span key={i} className="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-medium">&times; {sk}</span>
-                              ))}
+                            return (
+                              <div
+                                key={inv.id || idx}
+                                className={`p-4 rounded-2xl border transition ${
+                                  isPending
+                                    ? 'bg-blue-50/50 border-blue-200 shadow-sm'
+                                    : isSelected
+                                    ? 'bg-emerald-50/30 border-emerald-200 shadow-sm'
+                                    : 'bg-white border-slate-200 shadow-sm'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-sm text-slate-900">
+                                      {inv.roundDisplayName || formatRoundName(inv.round)}
+                                    </span>
+                                    {isPending && (
+                                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 animate-pulse">
+                                        🎥 Scheduled
+                                      </span>
+                                    )}
+                                    {isSelected && (
+                                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        ✓ Passed Round
+                                      </span>
+                                    )}
+                                    {isNotSelected && (
+                                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                                        ✕ Not Selected
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {inv.interviewDate ? new Date(inv.interviewDate).toLocaleString() : 'Date pending'}
+                                    {inv.durationMinutes ? ` (${inv.durationMinutes}m)` : ''}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs">
+                                  <div>
+                                    <span className="text-slate-500">Interviewer: </span>
+                                    <span className="font-semibold text-slate-800">{inv.interviewerName || 'Lead Evaluator'}</span>
+                                    {inv.interviewerEmail && (
+                                      <span className="text-slate-400 text-[11px] block">{inv.interviewerEmail}</span>
+                                    )}
+                                  </div>
+                                  {inv.meetingLink && (
+                                    <div>
+                                      <span className="text-slate-500">{inv.meetingLink.includes('meet.google.com') ? 'Google Meet: ' : 'Video Room: '}</span>
+                                      <a
+                                        href={inv.meetingLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-mono text-blue-600 hover:underline inline-flex items-center gap-1 text-[11px]"
+                                      >
+                                        <span>🎥</span>
+                                        <span>{inv.meetingLink.includes('meet.google.com') ? 'Join Google Meet &rarr;' : 'Join Video Room &rarr;'}</span>
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {inv.notes && (
+                                  <div className="mt-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-slate-600">
+                                    <strong className="text-slate-700">Agenda / Instructions: </strong>
+                                    {inv.notes}
+                                  </div>
+                                )}
+
+                                {/* Rich Interviewer Evaluation Scorecard */}
+                                {(inv.technicalRating || inv.overallRating || inv.feedback) && (
+                                  <div className="mt-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-amber-500 font-black text-sm">⭐</span>
+                                        <span className="font-extrabold text-xs text-slate-900">
+                                          Interviewer Scorecard: {inv.overallRating ? `${inv.overallRating} / 5.0` : 'Feedback Recorded'}
+                                        </span>
+                                      </div>
+                                      {inv.result === 'SELECTED' ? (
+                                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                                          ✓ Good (Recommended to Advance)
+                                        </span>
+                                      ) : inv.result === 'NOT_SELECTED' ? (
+                                        <span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+                                          ✕ Bad (Not Recommended)
+                                        </span>
+                                      ) : null}
+                                    </div>
+
+                                    {inv.technicalRating && (
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600 font-medium">Technical:</span>
+                                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                                            <StarRatingDisplay value={inv.technicalRating} /> {inv.technicalRating}/5
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600 font-medium">Communication:</span>
+                                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                                            <StarRatingDisplay value={inv.communicationRating} /> {inv.communicationRating}/5
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600 font-medium">Confidence:</span>
+                                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                                            <StarRatingDisplay value={inv.confidenceRating} /> {inv.confidenceRating}/5
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-slate-600 font-medium">Body Language:</span>
+                                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                                            <StarRatingDisplay value={inv.bodyLanguageRating} /> {inv.bodyLanguageRating}/5
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {(inv.comments || inv.feedback) && (
+                                      <div className="text-xs text-slate-700 bg-amber-50/40 p-2.5 rounded-xl border border-amber-200/50">
+                                        <span className="font-bold text-slate-900 block mb-1">💬 Interviewer Feedback & Comments:</span>
+                                        <p className="italic text-slate-700 font-sans leading-relaxed">"{inv.comments || inv.feedback}"</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {isPending && (
+                                  <div className="mt-3 pt-2.5 border-t border-blue-100 flex items-center justify-between flex-wrap gap-2">
+                                    <span className="text-xs text-blue-700 font-semibold">Evaluation awaiting submission</span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => {
+                                          const token = inv.accessToken || inv.id;
+                                          window.open(`/?portal=interviewer&token=${token}`, '_blank');
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm flex items-center gap-1"
+                                        title="Open direct feedback submission portal link sent to interviewer"
+                                      >
+                                        <span>⭐</span>
+                                        <span>Interviewer Portal &rarr;</span>
+                                      </button>
+                                      <button
+                                        onClick={() => onOpenDecision ? onOpenDecision(c, inv) : onOpenInterview()}
+                                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm"
+                                      >
+                                        📝 Record HR Decision
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {(!c.interviews || c.interviews.length === 0) && (
+                            <div className="text-xs text-slate-400 italic py-4 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+                              No interview rounds scheduled yet. Click "Schedule Interview" to initiate the pipeline.
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* Dispatched Emails History */}
-                  <div className="space-y-3">
-                    <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider text-xs">Automated Emails Dispatched ({c.emailCommunications?.length || 0})</h4>
-                    <div className="space-y-2.5">
-                      {(c.emailCommunications || []).map(em => (
-                        <div key={em.id} className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-300 transition flex items-center justify-between">
-                          <div>
-                            <div className="font-semibold text-xs text-slate-900 flex items-center gap-2">
-                              <span>✉️</span>
-                              <span>{em.subject}</span>
+                    {/* Right Column (5 cols): ATS Evaluation Breakdown & Dispatched Emails */}
+                    <div className="lg:col-span-5 space-y-6">
+                      {/* ATS Scoring Breakdown */}
+                      {c.atsResult && (
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                          <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider text-xs border-b border-slate-100 pb-2">
+                            ATS Evaluation Breakdown
+                          </h4>
+                          <div className="space-y-3">
+                            <div className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                              <strong className="text-slate-900 block mb-1">AI Screening Summary:</strong>
+                              {c.atsResult.aiSummary || 'No AI summary available'}
                             </div>
-                            <div className="text-[11px] text-slate-500 mt-1">
-                              Type: <span className="font-mono font-bold text-slate-700">{em.emailType}</span> &bull; Sent to: {em.recipientEmail}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                              {em.sentStatus}
-                            </span>
-                            <button
-                              onClick={() => onPreviewEmail(em)}
-                              className="px-2.5 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded"
-                            >
-                              View HTML
-                            </button>
+
+                            {c.atsResult.matchedSkills?.length > 0 && (
+                              <div>
+                                <div className="text-[11px] font-bold text-emerald-800 uppercase mb-1.5">Matched Skills:</div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {c.atsResult.matchedSkills.map((sk, i) => (
+                                    <span key={i} className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg font-medium border border-emerald-200">
+                                      ✓ {sk}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {c.atsResult.missingSkills?.length > 0 && (
+                              <div>
+                                <div className="text-[11px] font-bold text-rose-800 uppercase mb-1.5">Missing Job Requirements:</div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {c.atsResult.missingSkills.map((sk, i) => (
+                                    <span key={i} className="text-xs bg-rose-100 text-rose-800 px-2.5 py-1 rounded-lg font-medium border border-rose-200">
+                                      &times; {sk}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ))}
-                      {(!c.emailCommunications || c.emailCommunications.length === 0) && (
-                        <div className="text-xs text-slate-400 italic py-4 text-center">No emails dispatched yet.</div>
                       )}
+
+                      {/* Dispatched Emails History */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider text-xs">
+                            Automated Emails Dispatched ({c.emailCommunications?.length || 0})
+                          </h4>
+                        </div>
+                        <div className="space-y-2.5">
+                          {(c.emailCommunications || []).map(em => (
+                            <div key={em.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50/40 hover:border-blue-300 transition flex items-center justify-between">
+                              <div className="pr-2">
+                                <div className="font-semibold text-xs text-slate-900 flex items-center gap-2">
+                                  <span>✉️</span>
+                                  <span className="line-clamp-1">{em.subject}</span>
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-1">
+                                  Type: <span className="font-mono font-bold text-slate-700">{em.emailType}</span> &bull; Sent to: <span className="font-mono text-slate-600">{em.recipientEmail}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${em.sentStatus === 'SENT' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}`}>
+                                  {em.sentStatus}
+                                </span>
+                                <button
+                                  onClick={() => onPreviewEmail(em)}
+                                  className="px-2.5 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-100/60 rounded-lg transition"
+                                >
+                                  View HTML
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {(!c.emailCommunications || c.emailCommunications.length === 0) && (
+                            <div className="text-xs text-slate-400 italic py-6 text-center bg-slate-50 rounded-xl border border-slate-100">
+                              No automated emails dispatched yet.
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
+      );
+    }
       );
     }
 
