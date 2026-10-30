@@ -635,11 +635,16 @@
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-bold transition flex items-center gap-1.5"
+                  className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition flex items-center justify-center group"
                   title="Sign Out of Interviewer Portal"
+                  aria-label="Sign Out"
                 >
-                  <span>🚪</span>
-                  <span>Sign Out</span>
+                  <img
+                    src="/logout-icon.png"
+                    alt="Sign Out"
+                    className="w-5 h-5 object-contain transition-transform group-hover:translate-x-0.5"
+                    onError={(e) => { if (window.LOGOUT_ICON_DATA) e.target.src = window.LOGOUT_ICON_DATA; }}
+                  />
                 </button>
               </div>
             </div>

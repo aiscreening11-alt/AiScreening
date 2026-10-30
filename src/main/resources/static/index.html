@@ -534,9 +534,15 @@
                     showToast('HR Administrator logged out successfully.', 'info');
                   }}
                   title="Sign Out"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-500/20 text-xs font-semibold transition"
+                  aria-label="Sign Out"
+                  className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition flex items-center justify-center group"
                 >
-                  <span>Sign Out</span>
+                  <img
+                    src="/logout-icon.png"
+                    alt="Sign Out"
+                    className="w-5 h-5 object-contain transition-transform group-hover:translate-x-0.5"
+                    onError={(e) => { if (window.LOGOUT_ICON_DATA) e.target.src = window.LOGOUT_ICON_DATA; }}
+                  />
                 </button>
               </div>
             </div>
@@ -3608,10 +3614,16 @@
                   <button
                     type="button"
                     onClick={onLogout}
-                    className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold transition flex items-center gap-1.5"
+                    className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition flex items-center justify-center group"
                     title="Sign out of Interviewer Portal"
+                    aria-label="Sign Out"
                   >
-                    <span>Sign Out</span>
+                    <img
+                      src="/logout-icon.png"
+                      alt="Sign Out"
+                      className="w-4 h-4 object-contain transition-transform group-hover:translate-x-0.5"
+                      onError={(e) => { if (window.LOGOUT_ICON_DATA) e.target.src = window.LOGOUT_ICON_DATA; }}
+                    />
                   </button>
                 )}
 
