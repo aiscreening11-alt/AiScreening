@@ -29,8 +29,12 @@ public class ThymeleafEmailServiceImpl implements EmailService {
     @Transactional
     public void sendShortlistEmail(Candidate candidate) {
         String jobTitle = getJobTitle(candidate);
-        String subject = "Application Update – You Have Been Shortlisted";
+        String subject = "Application Update – Selected for Round 1 (L1 Technical Screening) | " + jobTitle + " | Sanvii Techmet";
         Context context = createContext(candidate, jobTitle);
+        context.setVariable("roundName", "Round 1: L1 Technical Interview");
+        if (candidate.getAtsResult() != null && candidate.getAtsResult().getFinalScore() != null) {
+            context.setVariable("atsScore", Math.round(candidate.getAtsResult().getFinalScore()));
+        }
         String htmlBody = templateEngine.process("candidate-shortlisted", context);
 
         dispatchEmail(candidate, EmailType.SHORTLISTED, subject, htmlBody);
@@ -177,7 +181,12 @@ public class ThymeleafEmailServiceImpl implements EmailService {
 
     private void dispatchEmail(Candidate candidate, EmailType type, String subject, String htmlBody) {
         String recipient = getRecipientEmail(candidate);
-        log.info(">>> [EMAIL DISPATCH] ATTEMPTING TO DELIVER CANDIDATE EMAIL: Target='{}', Subject='{}'", recipient, subject);
+        log.info("================================================================================");
+        log.info(">>> [EMAIL DISPATCH] PORTAL TRIGGERING {} EMAIL", type);
+        log.info(">>> Candidate: '{}' | Recipient Target: '{}' (SenderEmail='{}', ResumeEmail='{}')",
+                candidate.getFullName(), recipient, candidate.getSenderEmail(), candidate.getResumeEmail());
+        log.info(">>> Subject: '{}'", subject);
+        log.info("================================================================================");
 
         EmailCommunication comm = EmailCommunication.builder()
                 .candidate(candidate)
@@ -191,9 +200,9 @@ public class ThymeleafEmailServiceImpl implements EmailService {
         try {
             gmailClient.sendHtmlEmail(recipient, subject, htmlBody);
             comm.setSentStatus(EmailStatus.SENT);
-            log.info(">>> [EMAIL DISPATCH SUCCESS] CANDIDATE EMAIL DELIVERED TO: '{}'", recipient);
+            log.info(">>> [EMAIL DISPATCH SUCCESS] EMAIL DELIVERED TO: '{}'", recipient);
         } catch (Exception e) {
-            log.error(">>> [EMAIL DISPATCH FAILURE] FAILED TO DELIVER CANDIDATE EMAIL TO '{}': {}", recipient, e.getMessage(), e);
+            log.error(">>> [EMAIL DISPATCH FAILURE] FAILED TO DELIVER EMAIL TO '{}': {}", recipient, e.getMessage(), e);
             comm.setSentStatus(EmailStatus.FAILED);
             comm.setErrorMessage(e.getMessage());
         }
@@ -204,14 +213,22 @@ public class ThymeleafEmailServiceImpl implements EmailService {
 
     private Context createContext(Candidate candidate, String jobTitle) {
         Context context = new Context();
-        context.setVariable("candidateName", candidate.getFullName() != null ? candidate.getFullName() : "Candidate");
+        context.setVariable("candidateName", candidate.getFullName() != null && !candidate.getFullName().isBlank() ? candidate.getFullName() : "Candidate");
         context.setVariable("jobTitle", jobTitle);
+        if (candidate.getAtsResult() != null && candidate.getAtsResult().getFinalScore() != null) {
+            context.setVariable("atsScore", Math.round(candidate.getAtsResult().getFinalScore()));
+        }
         return context;
     }
 
     private String getRecipientEmail(Candidate candidate) {
+        if (candidate.getSenderEmail() != null && !candidate.getSenderEmail().isBlank()
+                && !candidate.getSenderEmail().equalsIgnoreCase("manual@upload.local")
+                && !candidate.getSenderEmail().toLowerCase().endsWith("@upload.local")) {
+            return candidate.getSenderEmail().trim();
+        }
         if (candidate.getResumeEmail() != null && !candidate.getResumeEmail().isBlank()) {
-            return candidate.getResumeEmail();
+            return candidate.getResumeEmail().trim();
         }
         return candidate.getSenderEmail();
     }

@@ -97,7 +97,7 @@ public class GmailAdminController {
     @PostMapping(value = "/candidates/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<CandidateResponseDto>> uploadResume(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("jobId") UUID jobId,
+            @RequestParam(value = "jobId", required = false) UUID jobId,
             @RequestParam(value = "senderEmail", required = false) String senderEmail) throws IOException {
 
         if (file.isEmpty()) {

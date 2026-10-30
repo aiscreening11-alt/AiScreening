@@ -1,4 +1,7 @@
 spring:
+  config:
+    import:
+      - optional:file:./application-local.yml
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:recruitment_db}?sslmode=${DB_SSL_MODE:prefer}}}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}
@@ -42,8 +45,6 @@ gmail:
   enabled: true
   polling:
     interval: 60000
-  client-id: ${GOOGLE_CLIENT_ID:your-google-oauth-client-id.apps.googleusercontent.com}
-  client-secret: ${GOOGLE_CLIENT_SECRET:your-google-oauth-client-secret}
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/gmail/oauth2callback}
   tokens-directory-path: ./tokens
   recruitment-email: ${RECRUITMENT_EMAIL:aayushkumarlashkari8@gmail.com}

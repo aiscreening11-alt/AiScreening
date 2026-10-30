@@ -48,6 +48,9 @@ class EndToEndRecruitmentFlowTest {
     @Autowired
     private EmailCommunicationRepository emailCommunicationRepository;
 
+    @Autowired
+    private com.company.recruitment.repository.InterviewRepository interviewRepository;
+
     private byte[] generateJohnDoePdfResume() throws IOException {
         try (PDDocument document = new PDDocument()) {
             PDPage page = new PDPage();
@@ -114,19 +117,35 @@ class EndToEndRecruitmentFlowTest {
         assertFalse(initialEmails.isEmpty(), "Email communication history should contain the shortlist email");
         assertEquals(EmailType.SHORTLISTED, initialEmails.getFirst().getEmailType());
 
-        // Step 11-13: Recruiter conducts interview and records result = SELECTED -> Triggers Selection Email
-        InterviewResultRequestDto interviewReq = InterviewResultRequestDto.builder()
+        // Step 11: L1 Interview recorded as SELECTED -> Candidate advances to L1_PASSED
+        InterviewResultRequestDto l1InterviewReq = InterviewResultRequestDto.builder()
                 .result(InterviewResult.SELECTED)
-                .interviewerName("Sarah Recruiter")
-                .feedback("Outstanding candidate. Strong system design and hands-on Spring Boot / Kafka skills.")
+                .interviewerName("Technical Panel")
+                .feedback("Strong system design and hands-on Spring Boot / Kafka skills.")
                 .build();
 
-        CandidateResponseDto finalResult = interviewService.recordInterviewResult(candidate.getId(), interviewReq);
+        CandidateResponseDto l1Result = interviewService.recordInterviewResult(candidate.getId(), l1InterviewReq);
+        assertNotNull(l1Result);
+        assertEquals(CandidateStatus.L1_PASSED, l1Result.getStatus());
 
+        // Step 12: Final HR Round decision -> SELECTED -> Triggers Selection Email
+        com.company.recruitment.entity.Interview hrInterview = com.company.recruitment.entity.Interview.builder()
+                .candidate(candidate)
+                .round(com.company.recruitment.entity.enums.InterviewRound.HR_ROUND)
+                .interviewerName("Sarah Recruiter")
+                .interviewDate(java.time.LocalDateTime.now())
+                .build();
+        hrInterview = interviewRepository.save(hrInterview);
+
+        InterviewResultRequestDto hrDecision = InterviewResultRequestDto.builder()
+                .result(InterviewResult.SELECTED)
+                .feedback("Culture fit approved. Salary expectations aligned.")
+                .interviewerName("Sarah Recruiter")
+                .build();
+
+        CandidateResponseDto finalResult = interviewService.recordRoundDecision(candidate.getId(), hrInterview.getId(), hrDecision);
         assertNotNull(finalResult);
         assertEquals(CandidateStatus.SELECTED, finalResult.getStatus());
-        assertEquals(1, finalResult.getInterviews().size());
-        assertEquals(InterviewResult.SELECTED, finalResult.getInterviews().getFirst().getResult());
 
         // Verify Selection email was recorded
         boolean hasSelectionEmail = finalResult.getEmailCommunications().stream()
