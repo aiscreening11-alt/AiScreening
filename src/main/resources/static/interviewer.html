@@ -45,7 +45,44 @@
     .animate-fade-in {
       animation: fadeIn 0.25s ease-out forwards;
     }
+
+    /* Light Theme overrides when <html class="light"> */
+    html.light body {
+      background-color: #f8fafc !important;
+      color: #0f172a !important;
+    }
+    html.light .bg-slate-950,
+    html.light .bg-slate-900 {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+    }
+    html.light .border-slate-800,
+    html.light .border-slate-700 {
+      border-color: #e2e8f0 !important;
+    }
+    html.light .text-slate-100,
+    html.light .text-white {
+      color: #0f172a !important;
+    }
+    html.light .text-slate-400,
+    html.light .text-slate-300 {
+      color: #64748b !important;
+    }
   </style>
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('sanvii_theme');
+        if (savedTheme === 'light') {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+        }
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen custom-scrollbar selection:bg-amber-500 selection:text-slate-950">
   <div id="root"></div>
@@ -337,6 +374,40 @@
     // MAIN INTERVIEWER PORTAL APP
     // ==========================================
     function InterviewerPortalApp() {
+      // Theme State (Dark / Light Theme)
+      const [theme, setTheme] = useState(() => {
+        try {
+          const saved = localStorage.getItem('sanvii_theme');
+          if (saved === 'dark' || saved === 'light') return saved;
+        } catch (e) {}
+        return 'dark';
+      });
+
+      useEffect(() => {
+        try {
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      }, [theme]);
+
+      const toggleTheme = () => {
+        const nextTheme = theme === 'dark' ? 'light' : 'dark';
+        setTheme(nextTheme);
+        try {
+          localStorage.setItem('sanvii_theme', nextTheme);
+        } catch (e) {}
+        if (nextTheme === 'dark') {
+          showToast('Dark theme activated 🌙', 'info');
+        } else {
+          showToast('Light theme activated ☀️', 'info');
+        }
+      };
+
       const [session, setSession] = useState(() => {
         try {
           const saved = localStorage.getItem('sanvii_interviewer_session');
@@ -630,6 +701,24 @@
                   title="Refresh Assigned Interviews"
                 >
                   <span className={loading ? 'inline-block animate-spin' : ''}>🔄</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                  aria-label={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                  className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center ${
+                    theme === 'dark'
+                      ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 border border-amber-500/30 shadow-sm shadow-amber-500/10'
+                      : 'bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-indigo-200 border border-slate-700 shadow-sm'
+                  }`}
+                >
+                  {theme === 'dark' ? (
+                    <span className="text-sm leading-none select-none" role="img" aria-label="Light mode">☀️</span>
+                  ) : (
+                    <span className="text-sm leading-none select-none" role="img" aria-label="Dark mode">🌙</span>
+                  )}
                 </button>
 
                 <button

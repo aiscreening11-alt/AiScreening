@@ -17,12 +17,112 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.25s ease, color 0.25s ease; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ====================================================
+       DARK THEME STYLES (Activated when <html class="dark">)
+       ==================================================== */
+    html.dark body {
+      background-color: #0b0f19 !important;
+      color: #f1f5f9 !important;
+    }
+    html.dark .bg-white {
+      background-color: #111827 !important;
+      color: #f1f5f9 !important;
+    }
+    html.dark .bg-slate-50 {
+      background-color: #0b0f19 !important;
+    }
+    html.dark .bg-slate-100 {
+      background-color: #172033 !important;
+      color: #e2e8f0 !important;
+    }
+    html.dark .bg-slate-200 {
+      background-color: #1e293b !important;
+    }
+    html.dark .border-slate-100,
+    html.dark .border-slate-200 {
+      border-color: #1e293b !important;
+    }
+    html.dark .border-slate-300 {
+      border-color: #334155 !important;
+    }
+    html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+    html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+      border-color: #1e293b !important;
+    }
+    html.dark .text-slate-900,
+    html.dark .text-slate-800,
+    html.dark .text-slate-700 {
+      color: #f8fafc !important;
+    }
+    html.dark .text-slate-600,
+    html.dark .text-slate-500 {
+      color: #94a3b8 !important;
+    }
+    html.dark tr:hover,
+    html.dark tr.hover\:bg-slate-50:hover,
+    html.dark .hover\:bg-slate-50:hover {
+      background-color: #1e293b !important;
+    }
+    html.dark input,
+    html.dark select,
+    html.dark textarea {
+      background-color: #172033 !important;
+      color: #f8fafc !important;
+      border-color: #334155 !important;
+    }
+    html.dark input::placeholder,
+    html.dark textarea::placeholder {
+      color: #64748b !important;
+    }
+    html.dark .bg-blue-50 {
+      background-color: rgba(30, 58, 138, 0.25) !important;
+      color: #93c5fd !important;
+    }
+    html.dark .bg-emerald-50 {
+      background-color: rgba(6, 78, 59, 0.25) !important;
+      color: #6ee7b7 !important;
+    }
+    html.dark .bg-amber-50 {
+      background-color: rgba(120, 53, 15, 0.25) !important;
+      color: #fcd34d !important;
+    }
+    html.dark .bg-purple-50 {
+      background-color: rgba(88, 28, 135, 0.25) !important;
+      color: #d8b4fe !important;
+    }
+    html.dark .bg-red-50 {
+      background-color: rgba(127, 29, 29, 0.25) !important;
+      color: #fca5a5 !important;
+    }
+    html.dark .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0b0f19 !important;
+    }
+    html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155 !important;
+    }
+    html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #475569 !important;
+    }
   </style>
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('sanvii_theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
   <div id="root"></div>
@@ -101,6 +201,41 @@
     function App() {
       const [auth, setAuth] = useState(getSavedAuth);
       const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'jobs', 'candidates', 'simulator', 'gmail'
+
+      // Theme State (Dark / Light Theme)
+      const [theme, setTheme] = useState(() => {
+        try {
+          const saved = localStorage.getItem('sanvii_theme');
+          if (saved === 'dark' || saved === 'light') return saved;
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        } catch (e) {}
+        return 'light';
+      });
+
+      useEffect(() => {
+        try {
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      }, [theme]);
+
+      const toggleTheme = () => {
+        const nextTheme = theme === 'dark' ? 'light' : 'dark';
+        setTheme(nextTheme);
+        try {
+          localStorage.setItem('sanvii_theme', nextTheme);
+        } catch (e) {}
+        if (nextTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          showToast('Dark theme activated 🌙', 'info');
+        } else {
+          document.documentElement.classList.remove('dark');
+          showToast('Light theme activated ☀️', 'info');
+        }
+      };
 
       // If someone accesses with interviewer parameters, redirect to dedicated Interviewer Portal
       useEffect(() => {
@@ -439,6 +574,8 @@
             }}
             toast={toast}
             setToast={setToast}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
         );
       }
@@ -526,6 +663,22 @@
                   className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
                 >
                   🔄
+                </button>
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                  aria-label={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                  className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                    theme === 'dark'
+                      ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 border border-amber-500/30 shadow-sm shadow-amber-500/10'
+                      : 'bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-indigo-200 border border-slate-700 shadow-sm'
+                  }`}
+                >
+                  {theme === 'dark' ? (
+                    <span className="text-sm sm:text-base leading-none select-none" role="img" aria-label="Light mode">☀️</span>
+                  ) : (
+                    <span className="text-sm sm:text-base leading-none select-none" role="img" aria-label="Dark mode">🌙</span>
+                  )}
                 </button>
                 <button
                   onClick={() => {
@@ -4551,7 +4704,7 @@
     // ==========================================
     // HR ADMIN LOGIN PAGE (DEDICATED PORTAL)
     // ==========================================
-    function LoginPage({ onLogin, toast, setToast }) {
+    function LoginPage({ onLogin, toast, setToast, theme, toggleTheme }) {
       const [hrUsername, setHrUsername] = useState('Sanvii');
       const [hrPassword, setHrPassword] = useState('Sanvii@2016');
       const [showPassword, setShowPassword] = useState(false);
@@ -4612,6 +4765,25 @@
           {/* Subtle glowing ambient lights */}
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+          {/* Top-Right Theme Toggle */}
+          {toggleTheme && (
+            <div className="absolute top-6 right-6 z-20">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle Theme"
+                className="p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-slate-800 shadow-xl backdrop-blur transition flex items-center justify-center"
+              >
+                {theme === 'dark' ? (
+                  <span className="text-base leading-none select-none">☀️</span>
+                ) : (
+                  <span className="text-base leading-none select-none">🌙</span>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Toast Notification */}
           {toast && (
