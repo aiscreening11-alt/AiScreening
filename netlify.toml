@@ -1,7 +1,5 @@
 [build]
-  base = "frontend"
-  command = "npm install && npm run build"
-  publish = "dist"
+  publish = "src/main/resources/static"
 
 # Proxy all API requests to the Render backend (Zero CORS configuration needed in browser)
 [[redirects]]

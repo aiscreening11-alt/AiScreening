@@ -1,6 +1,7 @@
 package com.company.recruitment.service.gmail;
 
 import com.company.recruitment.exception.GmailIntegrationException;
+import com.company.recruitment.service.email.ResendEmailService;
 import com.google.api.client.util.Base64;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
@@ -29,6 +30,7 @@ import java.util.*;
 public class GmailClientImpl implements GmailClient {
 
     private final GmailAuthenticationService authService;
+    private final ResendEmailService resendEmailService;
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
@@ -177,11 +179,25 @@ public class GmailClientImpl implements GmailClient {
         log.info(">>> [GMAIL CLIENT] Recipient : {}", recipientEmail);
         log.info(">>> [GMAIL CLIENT] Subject   : {}", subject);
         log.info(">>> [GMAIL CLIENT] From Email: {}", recruitmentEmail);
-        log.info(">>> [GMAIL CLIENT] Status    : OAuth Service Available = {}, SMTP Password Configured = {}",
-                (authService.getGmailService() != null), (mailPassword != null && !mailPassword.isBlank()));
+        log.info(">>> [GMAIL CLIENT] Providers : Resend API={}, Gmail OAuth={}, SMTP Configured={}",
+                (resendEmailService != null && resendEmailService.isConfigured()),
+                (authService.getGmailService() != null),
+                (mailPassword != null && !mailPassword.isBlank()));
         log.info("--------------------------------------------------------------------------------");
 
-        // Mode 1: Dispatch via Google Gmail OAuth API if authorized
+        // Mode 1: Dispatch via Resend HTTP REST API (Recommended for Render & Cloud - uses HTTPS port 443, immune to SMTP blocking)
+        if (resendEmailService != null && resendEmailService.isConfigured()) {
+            try {
+                log.info(">>> [GMAIL CLIENT] Attempting delivery via Resend HTTP REST API (port 443) to '{}'...", recipientEmail);
+                String emailId = resendEmailService.sendEmail(recipientEmail, subject, htmlBody, recruitmentEmail);
+                log.info(">>> [GMAIL CLIENT - SUCCESS] Successfully transmitted email via Resend API to '{}' (ID: {})", recipientEmail, emailId);
+                return;
+            } catch (Exception resendEx) {
+                log.warn(">>> [GMAIL CLIENT] Resend delivery failed for {}: {}. Checking next provider fallback...", recipientEmail, resendEx.getMessage());
+            }
+        }
+
+        // Mode 2: Dispatch via Google Gmail OAuth API if authorized
         Gmail service = authService.getGmailService();
         if (service != null) {
             try {
@@ -223,7 +239,7 @@ public class GmailClientImpl implements GmailClient {
             }
         }
 
-        // Mode 2: Dispatch via Gmail SMTP (Spring Mail) if MAIL_PASSWORD configured
+        // Mode 3: Dispatch via Gmail SMTP (Spring Mail) if MAIL_PASSWORD configured
         if (mailSender != null && mailPassword != null && !mailPassword.isBlank()) {
             try {
                 log.info(">>> [GMAIL CLIENT] Attempting delivery via Gmail SMTP (smtp.gmail.com:587 TLS) to '{}'...", recipientEmail);
@@ -242,12 +258,12 @@ public class GmailClientImpl implements GmailClient {
             }
         }
 
-        // Neither OAuth nor SMTP is configured: in dev mode simulate dispatch so candidate workflow succeeds
+        // Neither Resend, OAuth, nor SMTP is configured: in dev mode simulate dispatch so candidate workflow succeeds
         log.warn("================================================================================");
         log.warn(">>> [GMAIL CLIENT - DEV SIMULATION] Live email delivery to '{}' simulated.", recipientEmail);
-        log.warn(">>> Status: OAuth is pending authorization at /api/v1/gmail/authorize");
-        log.warn(">>> To dispatch REAL emails to real inboxes from {}, visit: http://localhost:8080/api/v1/gmail/authorize", recruitmentEmail);
-        log.warn(">>> or set spring.mail.password (16-char Gmail App Password) in application-local.yml");
+        log.warn(">>> Status: Neither Resend API (RESEND_API_KEY) nor Gmail OAuth nor Gmail SMTP is connected.");
+        log.warn(">>> To dispatch REAL emails on Render, set environment variable RESEND_API_KEY=re_xxxx");
+        log.warn(">>> or authorize Gmail OAuth at /api/v1/gmail/authorize or set spring.mail.password");
         log.warn("================================================================================");
     }
 

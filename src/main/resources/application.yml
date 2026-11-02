@@ -71,6 +71,11 @@ gmail:
   tokens-directory-path: ./tokens
   recruitment-email: ${RECRUITMENT_EMAIL:aayushkumarlashkari8@gmail.com}
 
+# Resend API Configuration (HTTPS port 443 - Immune to cloud SMTP port blocking on Render)
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from-email: ${RESEND_FROM_EMAIL:Sanvii ATS <onboarding@resend.dev>}
+
 # Storage Configuration
 storage:
   local:

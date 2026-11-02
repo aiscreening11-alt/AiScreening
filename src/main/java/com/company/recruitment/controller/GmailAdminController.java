@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import com.company.recruitment.service.email.ResendEmailService;
 import com.company.recruitment.service.gmail.GmailClient;
 
 @Slf4j
@@ -36,14 +37,17 @@ public class GmailAdminController {
     private final CandidateRepository candidateRepository;
     private final CandidateMapper candidateMapper;
     private final GmailClient gmailClient;
+    private final ResendEmailService resendEmailService;
 
     @GetMapping("/gmail/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getGmailStatus() {
         Map<String, Object> status = Map.of(
                 "configured", authService.isConfigured(),
-                "authorized", authService.isAuthorized()
+                "authorized", authService.isAuthorized(),
+                "resendConfigured", resendEmailService.isConfigured(),
+                "resendSender", resendEmailService.getFromEmail()
         );
-        return ResponseEntity.ok(ApiResponse.success(status, "Gmail integration status retrieved"));
+        return ResponseEntity.ok(ApiResponse.success(status, "Email & Gmail integration status retrieved"));
     }
 
     @PostMapping("/gmail/send-test")
