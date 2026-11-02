@@ -2,6 +2,8 @@
 FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /app
 
+ENV MAVEN_OPTS="-Xmx384m -XX:+UseSerialGC"
+
 COPY pom.xml .
 COPY src ./src
 RUN mvn clean package -DskipTests -B
@@ -17,5 +19,7 @@ USER appuser
 
 COPY --from=builder /app/target/recruitment-ats-platform-1.0.0.jar app.jar
 
+ENV JAVA_OPTS="-Xmx384m -XX:+UseSerialGC"
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

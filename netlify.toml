@@ -1,5 +1,6 @@
 [build]
-  publish = "src/main/resources/static"
+  command = "mkdir -p dist && cp -r src/main/resources/static/* dist/"
+  publish = "dist"
 
 # Proxy all API requests to the Render backend (Zero CORS configuration needed in browser)
 [[redirects]]
