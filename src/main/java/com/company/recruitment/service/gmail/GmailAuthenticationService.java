@@ -127,20 +127,62 @@ public class GmailAuthenticationService {
         return getClientId() != null && !getClientId().isBlank() && getClientSecret() != null && !getClientSecret().isBlank();
     }
 
+    public String getRecruitmentEmail() {
+        return recruitmentEmail;
+    }
+
+    public String getRefreshToken() {
+        if (envRefreshToken != null && !envRefreshToken.isBlank()) {
+            return envRefreshToken.trim();
+        }
+        Optional<OAuthToken> dbToken = oauthTokenRepository.findById(USER_ID);
+        if (dbToken.isPresent() && dbToken.get().getRefreshToken() != null && !dbToken.get().getRefreshToken().isBlank()) {
+            return dbToken.get().getRefreshToken().trim();
+        }
+        try {
+            if (flow != null) {
+                com.google.api.client.auth.oauth2.Credential cred = flow.loadCredential(USER_ID);
+                if (cred != null && cred.getRefreshToken() != null && !cred.getRefreshToken().isBlank()) {
+                    return cred.getRefreshToken();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public boolean hasRefreshToken() {
+        String token = getRefreshToken();
+        return token != null && !token.isBlank();
+    }
+
+    public void saveManualRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IllegalArgumentException("Refresh token cannot be blank");
+        }
+        String cleanToken = refreshToken.trim();
+        OAuthToken token = OAuthToken.builder()
+                .id(USER_ID)
+                .refreshToken(cleanToken)
+                .emailAddress(recruitmentEmail)
+                .build();
+        oauthTokenRepository.save(token);
+        log.info(">>> [DB TOKEN PERSISTENCE] Manual refresh token saved into PostgreSQL.");
+    }
+
     public boolean isAuthorized() {
         try {
-            if (flow != null && flow.loadCredential(USER_ID) != null) {
+            if (hasRefreshToken()) {
                 return true;
             }
-            if (envRefreshToken != null && !envRefreshToken.isBlank()) {
-                return true;
-            }
-            Optional<OAuthToken> dbToken = oauthTokenRepository.findById(USER_ID);
-            if (dbToken.isPresent()) {
-                OAuthToken t = dbToken.get();
-                if ((t.getRefreshToken() != null && !t.getRefreshToken().isBlank())
-                        || (t.getAccessToken() != null && !t.getAccessToken().isBlank())) {
-                    return true;
+            if (flow != null) {
+                com.google.api.client.auth.oauth2.Credential cred = flow.loadCredential(USER_ID);
+                if (cred != null) {
+                    if (cred.getRefreshToken() != null && !cred.getRefreshToken().isBlank()) {
+                        return true;
+                    }
+                    if (cred.getAccessToken() != null && cred.getExpiresInSeconds() != null && cred.getExpiresInSeconds() > 60) {
+                        return true;
+                    }
                 }
             }
             return false;
@@ -176,7 +218,7 @@ public class GmailAuthenticationService {
                 .build();
     }
 
-    public void exchangeCodeForTokens(String code) {
+    public String exchangeCodeForTokens(String code) {
         if (flow == null) {
             throw new GmailIntegrationException("Gmail OAuth flow is not initialized");
         }
@@ -186,16 +228,24 @@ public class GmailAuthenticationService {
             GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(uri).execute();
             flow.createAndStoreCredential(response, USER_ID);
 
-            persistTokenToDatabase(response);
+            String finalRefreshToken = persistTokenToDatabase(response);
 
-            log.info("Successfully exchanged authorization code and stored Gmail OAuth credentials in file and PostgreSQL database.");
+            log.info("Successfully exchanged authorization code and stored Gmail OAuth credentials.");
+            if (finalRefreshToken != null && !finalRefreshToken.isBlank()) {
+                log.info("================================================================================");
+                log.info(">>> [PERMANENT GOOGLE REFRESH TOKEN GENERATED]");
+                log.info(">>> Refresh Token: {}", finalRefreshToken);
+                log.info(">>> Render Variable: GOOGLE_REFRESH_TOKEN={}", finalRefreshToken);
+                log.info("================================================================================");
+            }
+            return finalRefreshToken;
         } catch (IOException e) {
             log.error("Failed to exchange authorization code for Gmail tokens: {}", e.getMessage(), e);
             throw new GmailIntegrationException("Failed to exchange authorization code for Gmail tokens: " + e.getMessage(), e);
         }
     }
 
-    private void persistTokenToDatabase(GoogleTokenResponse response) {
+    private String persistTokenToDatabase(GoogleTokenResponse response) {
         try {
             Optional<OAuthToken> existing = oauthTokenRepository.findById(USER_ID);
             String existingRefreshToken = existing.map(OAuthToken::getRefreshToken).orElse(null);
@@ -221,8 +271,10 @@ public class GmailAuthenticationService {
             oauthTokenRepository.save(token);
             log.info(">>> [DB TOKEN PERSISTENCE] Gmail OAuth tokens persisted into PostgreSQL (refreshTokenPresent={})",
                     (finalRefreshToken != null && !finalRefreshToken.isBlank()));
+            return finalRefreshToken;
         } catch (Exception ex) {
             log.warn("Could not persist OAuth token to database: {}", ex.getMessage());
+            return response.getRefreshToken();
         }
     }
 
@@ -240,26 +292,25 @@ public class GmailAuthenticationService {
 
     public Gmail getGmailService() {
         try {
+            // Priority 1: Check in-memory/file flow credential if it has refresh token or valid access token
             if (flow != null) {
                 com.google.api.client.auth.oauth2.Credential cred = flow.loadCredential(USER_ID);
                 if (cred != null) {
-                    return new Gmail.Builder(httpTransport, JSON_FACTORY, cred)
-                            .setApplicationName("RecruitmentATSPlatform")
-                            .build();
+                    boolean hasRefreshToken = cred.getRefreshToken() != null && !cred.getRefreshToken().isBlank();
+                    boolean hasValidAccessToken = cred.getAccessToken() != null && (cred.getExpiresInSeconds() == null || cred.getExpiresInSeconds() > 60);
+                    if (hasRefreshToken || hasValidAccessToken) {
+                        return new Gmail.Builder(httpTransport, JSON_FACTORY, cred)
+                                .setApplicationName("RecruitmentATSPlatform")
+                                .build();
+                    } else {
+                        log.warn("Stored Gmail credential has expired and has no refresh token. Purging dead credential.");
+                        purgeStoredCredential();
+                    }
                 }
             }
 
-            String rToken = (envRefreshToken != null && !envRefreshToken.isBlank()) ? envRefreshToken.trim() : null;
-            String aToken = null;
-
-            if (rToken == null) {
-                Optional<OAuthToken> dbToken = oauthTokenRepository.findById(USER_ID);
-                if (dbToken.isPresent()) {
-                    rToken = dbToken.get().getRefreshToken();
-                    aToken = dbToken.get().getAccessToken();
-                }
-            }
-
+            // Priority 2: Use persistent refresh token (from env or PostgreSQL database)
+            String rToken = getRefreshToken();
             if (rToken != null && !rToken.isBlank()) {
                 GoogleCredential cred = new GoogleCredential.Builder()
                         .setTransport(httpTransport)
@@ -268,8 +319,9 @@ public class GmailAuthenticationService {
                         .build()
                         .setRefreshToken(rToken);
 
-                if (aToken != null && !aToken.isBlank()) {
-                    cred.setAccessToken(aToken);
+                Optional<OAuthToken> dbToken = oauthTokenRepository.findById(USER_ID);
+                if (dbToken.isPresent() && dbToken.get().getAccessToken() != null) {
+                    cred.setAccessToken(dbToken.get().getAccessToken());
                 }
 
                 return new Gmail.Builder(httpTransport, JSON_FACTORY, cred)

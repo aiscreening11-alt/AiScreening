@@ -231,11 +231,19 @@ public class GmailClientImpl implements GmailClient {
                 log.info(">>> [GMAIL CLIENT - SUCCESS] Successfully transmitted email via Gmail OAuth API to '{}'", recipientEmail);
                 return;
 
+            } catch (com.google.api.client.googleapis.json.GoogleJsonResponseException gjre) {
+                log.error(">>> [GMAIL CLIENT] Google Gmail API error ({}) for {}: {}", gjre.getStatusCode(), recipientEmail, gjre.getDetails() != null ? gjre.getDetails().getMessage() : gjre.getMessage());
+                if (gjre.getStatusCode() == 401 || gjre.getStatusCode() == 403) {
+                    authService.purgeStoredCredential();
+                }
+                throw new GmailIntegrationException("Google Gmail API error (" + gjre.getStatusCode() + "): " + (gjre.getDetails() != null ? gjre.getDetails().getMessage() : gjre.getMessage()), gjre);
             } catch (com.google.api.client.auth.oauth2.TokenResponseException tre) {
-                log.warn(">>> [GMAIL CLIENT] Google OAuth token expired or revoked for {}: {}", recipientEmail, tre.getMessage());
+                log.error(">>> [GMAIL CLIENT] Google OAuth token expired or revoked for {}: {}", recipientEmail, tre.getMessage());
                 authService.purgeStoredCredential();
+                throw new GmailIntegrationException("Google OAuth token expired or revoked. Re-authorize at /api/v1/gmail/authorize", tre);
             } catch (Exception ex) {
-                log.warn(">>> [GMAIL CLIENT] Gmail OAuth API delivery failed for {}: {}. Checking for SMTP fallback...", recipientEmail, ex.getMessage());
+                log.error(">>> [GMAIL CLIENT] Gmail OAuth API delivery failed for {}: {}", recipientEmail, ex.getMessage(), ex);
+                throw new GmailIntegrationException("Gmail OAuth delivery failed: " + ex.getMessage(), ex);
             }
         }
 

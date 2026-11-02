@@ -41,20 +41,29 @@ public class GmailAdminController {
 
     @GetMapping("/gmail/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getGmailStatus() {
-        Map<String, Object> status = Map.of(
-                "configured", authService.isConfigured(),
-                "authorized", authService.isAuthorized(),
-                "effectiveRedirectUri", authService.getEffectiveRedirectUri(),
-                "resendConfigured", resendEmailService.isConfigured(),
-                "resendSender", resendEmailService.getFromEmail()
-        );
+        Map<String, Object> status = new java.util.HashMap<>();
+        status.put("configured", authService.isConfigured());
+        status.put("authorized", authService.isAuthorized());
+        status.put("hasRefreshToken", authService.hasRefreshToken());
+        status.put("refreshToken", authService.getRefreshToken());
+        status.put("recruitmentEmail", authService.getRecruitmentEmail());
+        status.put("clientId", authService.getClientId());
+        status.put("effectiveRedirectUri", authService.getEffectiveRedirectUri());
+        status.put("resendConfigured", resendEmailService != null && resendEmailService.isConfigured());
+        status.put("resendSender", resendEmailService != null ? resendEmailService.getFromEmail() : "");
         return ResponseEntity.ok(ApiResponse.success(status, "Email & Gmail integration status retrieved"));
     }
 
     @PostMapping("/gmail/send-test")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendTestEmail(@RequestParam String toEmail) {
+        if (!authService.isAuthorized() && (resendEmailService == null || !resendEmailService.isConfigured())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(
+                    "Gmail is not authorized. Visit /api/v1/gmail/authorize in your browser to sign in and authorize email dispatch."
+            ));
+        }
+
         String testSubject = "Sanvii ATS Notification Test - Delivery Verification";
-        String testBody = "<h3>Sanvii ATS Notification Test</h3><p>This email verifies automated email delivery from the Sanvii ATS Platform to <strong>" + toEmail + "</strong>.</p>";
+        String testBody = "<h3>Sanvii ATS Notification Test</h3><p>This email verifies automated email delivery from the Sanvii ATS Platform to <strong>" + toEmail + "</strong> via Google Gmail API.</p>";
         
         try {
             gmailClient.sendHtmlEmail(toEmail, testSubject, testBody);
@@ -87,10 +96,42 @@ public class GmailAdminController {
     }
 
     @GetMapping("/gmail/oauth2callback")
-    public void oauth2Callback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
-        log.info("Received Google OAuth callback code. Exchanging for tokens...");
-        authService.exchangeCodeForTokens(code);
-        response.sendRedirect("/?gmail_connected=true");
+    public void oauth2Callback(
+            @RequestParam(value = "code", required = false) String code,
+            @RequestParam(value = "error", required = false) String error,
+            HttpServletResponse response) throws IOException {
+        if (error != null && !error.isBlank()) {
+            log.error("Google OAuth callback returned error: {}", error);
+            response.sendRedirect("/?gmail_error=" + java.net.URLEncoder.encode(error, java.nio.charset.StandardCharsets.UTF_8));
+            return;
+        }
+        if (code != null && !code.isBlank()) {
+            log.info("Received Google OAuth callback code. Exchanging for tokens...");
+            authService.exchangeCodeForTokens(code);
+            response.sendRedirect("/?gmail_connected=true");
+            return;
+        }
+        response.sendRedirect("/?gmail_error=No+authorization+code+received");
+    }
+
+    @PostMapping("/gmail/save-token")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> saveManualRefreshToken(
+            @RequestParam("refreshToken") String refreshToken) {
+        authService.saveManualRefreshToken(refreshToken);
+        return ResponseEntity.ok(ApiResponse.success(
+                Map.of(
+                        "saved", true,
+                        "authorized", authService.isAuthorized(),
+                        "hasRefreshToken", authService.hasRefreshToken()
+                ),
+                "Refresh token registered successfully. Gmail OAuth is now connected."
+        ));
+    }
+
+    @PostMapping("/gmail/disconnect")
+    public ResponseEntity<ApiResponse<String>> disconnectGmail() {
+        authService.purgeStoredCredential();
+        return ResponseEntity.ok(ApiResponse.success("Gmail OAuth credential purged. Integration disconnected."));
     }
 
     @PostMapping("/gmail/poll-now")
