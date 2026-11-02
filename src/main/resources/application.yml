@@ -60,16 +60,17 @@ ai:
   model: ${AI_MODEL:gpt-4o-mini}
   timeout-seconds: 15
 
-# Gmail Integration Configuration
+# Gmail Integration Configuration (Google Cloud OAuth REST API over HTTPS port 443 - zero domain needed!)
 gmail:
   enabled: true # Polling active flag
   polling:
     interval: 60000 # 60 seconds
-  client-id: ${GOOGLE_CLIENT_ID:your-google-oauth-client-id.apps.googleusercontent.com}
-  client-secret: ${GOOGLE_CLIENT_SECRET:your-google-oauth-client-secret}
+  client-id: ${GOOGLE_CLIENT_ID:}
+  client-secret: ${GOOGLE_CLIENT_SECRET:}
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/gmail/oauth2callback}
   tokens-directory-path: ./tokens
   recruitment-email: ${RECRUITMENT_EMAIL:aayushkumarlashkari8@gmail.com}
+  refresh-token: ${GOOGLE_REFRESH_TOKEN:${GMAIL_REFRESH_TOKEN:}}
 
 # Resend API Configuration (HTTPS port 443 - Immune to cloud SMTP port blocking on Render)
 resend:

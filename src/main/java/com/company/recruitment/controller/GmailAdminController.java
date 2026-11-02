@@ -44,6 +44,7 @@ public class GmailAdminController {
         Map<String, Object> status = Map.of(
                 "configured", authService.isConfigured(),
                 "authorized", authService.isAuthorized(),
+                "effectiveRedirectUri", authService.getEffectiveRedirectUri(),
                 "resendConfigured", resendEmailService.isConfigured(),
                 "resendSender", resendEmailService.getFromEmail()
         );
