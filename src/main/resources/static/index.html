@@ -1949,11 +1949,48 @@
             body: formData
           });
 
-          const data = await res.json();
-          setSimulationResult(data);
+          let rawText = '';
+          try {
+            rawText = await res.text();
+          } catch (e) {}
 
-          if (res.ok && data.success && data.data) {
-            onSuccess(data.data);
+          let data = null;
+          try {
+            if (rawText && rawText.trim().startsWith('{')) {
+              data = JSON.parse(rawText);
+            }
+          } catch (e) {}
+
+          if (res.status === 401) {
+            setSimulationResult({ success: false, message: 'Authentication required or session expired (401). Please log in again.' });
+            return;
+          }
+
+          if (!res.ok && !data) {
+            if (res.status === 502 || res.status === 503 || res.status === 504) {
+              setSimulationResult({
+                success: false,
+                message: `Backend is currently waking up or restarting (HTTP ${res.status}). Free tier instances take ~30-45 seconds to spin up from sleep. Please wait a moment and click Simulate again.`
+              });
+              return;
+            }
+            setSimulationResult({
+              success: false,
+              message: `Server returned HTTP ${res.status}. ${rawText ? rawText.slice(0, 150) : 'Please try again in a moment.'}`
+            });
+            return;
+          }
+
+          if (data) {
+            setSimulationResult(data);
+            if (res.ok && data.success && data.data) {
+              onSuccess(data.data);
+            }
+          } else {
+            setSimulationResult({
+              success: false,
+              message: 'Received empty response from server. Please try again.'
+            });
           }
         } catch (err) {
           setSimulationResult({ success: false, message: 'Simulation request error: ' + err.message });
@@ -2166,11 +2203,12 @@
                     <div className={`p-4 rounded-2xl border text-sm ${
                       simulationResult.data?.status === 'SHORTLISTED' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
                       simulationResult.data?.status === 'REJECTED' ? 'bg-rose-50 border-rose-200 text-rose-900' :
-                      'bg-amber-50 border-amber-200 text-amber-900'
+                      simulationResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
+                      'bg-rose-50 border-rose-200 text-rose-900'
                     }`}>
                       <div className="font-bold flex items-center gap-2 text-base">
-                        <span>{simulationResult.data?.status === 'SHORTLISTED' ? '⭐' : '🚫'}</span>
-                        <span>Candidate Status: {simulationResult.data?.status || 'PROCESSED'}</span>
+                        <span>{simulationResult.data?.status === 'SHORTLISTED' ? '⭐' : simulationResult.data?.status === 'REJECTED' ? '🚫' : simulationResult.success ? '✅' : '⚠️'}</span>
+                        <span>Candidate Status: {simulationResult.data?.status || (simulationResult.success ? 'PROCESSED' : 'REQUEST FAILED')}</span>
                       </div>
                       <p className="text-xs mt-1.5 opacity-90">{simulationResult.message}</p>
                     </div>
