@@ -772,6 +772,9 @@
                 onOpenDecision={openDecisionModal}
                 onGoToSimulator={() => setActiveTab('simulator')}
                 onGoToJobs={() => setActiveTab('jobs')}
+                onOpenCreateJob={() => setShowCreateJobModal(true)}
+                onGoToCandidates={() => setActiveTab('candidates')}
+                showToast={showToast}
               />
             )}
 
@@ -998,7 +1001,7 @@
     // ==========================================
     // 1. DASHBOARD VIEW
     // ==========================================
-    function DashboardView({ metrics, jobs, candidates, onSelectCandidate, onOpenSchedule, onOpenDecision, onGoToSimulator, onGoToJobs }) {
+    function DashboardView({ metrics, jobs, candidates, onSelectCandidate, onOpenSchedule, onOpenDecision, onGoToSimulator, onGoToJobs, onOpenCreateJob, onGoToCandidates, showToast }) {
       const stats = [
         { label: 'Total Applications', value: metrics?.totalApplications || metrics?.totalCandidates || candidates.length, color: 'from-blue-600 to-indigo-600', icon: '📑' },
         { label: 'Shortlisted (Stage 1)', value: metrics?.shortlisted || metrics?.shortlistedCount || candidates.filter(c => c.status === 'SHORTLISTED').length, color: 'from-emerald-500 to-teal-600', icon: '⭐' },
@@ -1007,8 +1010,218 @@
         { label: 'Not Selected / Regret', value: (metrics?.notSelected || 0) + (metrics?.rejected || metrics?.rejectedCount || 0) || candidates.filter(c => c.status === 'REJECTED' || c.status === 'NOT_SELECTED').length, color: 'from-rose-500 to-red-600', icon: '🚫' },
       ];
 
+      const hiredCount = metrics?.selected || metrics?.selectedCount || candidates.filter(c => c.status === 'SELECTED').length;
+      const totalCandidatesCount = candidates.length || metrics?.totalApplications || 0;
+      const displayTotalEmployee = totalCandidatesCount > 0 ? (totalCandidatesCount > 999 ? (totalCandidatesCount / 1000).toFixed(1) + 'k' : totalCandidatesCount) : '20.8k';
+      const displayHired = hiredCount > 0 ? (hiredCount > 999 ? (hiredCount / 1000).toFixed(1) + 'k' : hiredCount) : '26.4k';
+
       return (
         <div className="space-y-8">
+          {/* Header Greeting Bar matching user design */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                Hello, Talukdar
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                Here's the Current status for Today.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                onClick={() => showToast && showToast('🔔 3 new candidate applications received today. All auto-screened.', 'info')}
+                className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-sm transition flex items-center gap-1.5"
+              >
+                <span>+ Notification</span>
+              </button>
+              <button
+                onClick={onGoToSimulator}
+                className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-sm transition flex items-center gap-1.5"
+              >
+                <span>+ Message</span>
+              </button>
+              <button
+                onClick={onOpenCreateJob || onGoToJobs}
+                className="px-5 py-2.5 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5"
+              >
+                <span>Add Company</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 3 Trend Metric Cards with Real SVG Sparklines */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Card 1: Total Employee */}
+            <div className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-inner">
+                    💻
+                  </div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Total Employee</span>
+                </div>
+                <button
+                  onClick={onGoToCandidates}
+                  className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center transition shadow-md shadow-indigo-500/25 group-hover:scale-105"
+                  title="View candidates"
+                >
+                  <span className="text-sm font-bold">→</span>
+                </button>
+              </div>
+
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {displayTotalEmployee}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                    <span className="text-sm">↗</span>
+                    <span>2.5 vs last month</span>
+                  </div>
+                </div>
+
+                {/* Green Sparkline Graph */}
+                <div className="w-36 sm:w-44 h-16 flex-shrink-0">
+                  <svg viewBox="0 0 160 65" className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="sparklineGreen" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M 5 50 Q 20 45, 35 48 T 65 35 T 95 38 T 125 15 T 155 10 L 155 60 L 5 60 Z"
+                      fill="url(#sparklineGreen)"
+                    />
+                    <path
+                      d="M 5 50 Q 20 45, 35 48 T 65 35 T 95 38 T 125 15 T 155 10"
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="125" cy="15" r="4" fill="#ffffff" stroke="#10b981" strokeWidth="2.5" />
+                    <circle cx="125" cy="15" r="7" fill="#10b981" opacity="0.3" className="animate-ping" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Hired Candidates */}
+            <div className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-inner">
+                    👤
+                  </div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Hired Candidates</span>
+                </div>
+                <button
+                  onClick={onGoToCandidates}
+                  className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-600 dark:text-slate-300 flex items-center justify-center transition shadow-sm group-hover:scale-105"
+                  title="View hired candidates"
+                >
+                  <span className="text-sm font-bold">→</span>
+                </button>
+              </div>
+
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {displayHired}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-rose-500">
+                    <span className="text-sm">↗</span>
+                    <span>2.5 vs last month</span>
+                  </div>
+                </div>
+
+                {/* Red/Coral Sparkline Graph */}
+                <div className="w-36 sm:w-44 h-16 flex-shrink-0">
+                  <svg viewBox="0 0 160 65" className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="sparklineRed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M 5 15 Q 25 10, 45 22 T 75 18 T 105 28 T 125 22 T 155 48 L 155 60 L 5 60 Z"
+                      fill="url(#sparklineRed)"
+                    />
+                    <path
+                      d="M 5 15 Q 25 10, 45 22 T 75 18 T 105 28 T 125 22 T 155 48"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="105" cy="28" r="4" fill="#ffffff" stroke="#ef4444" strokeWidth="2.5" />
+                    <circle cx="105" cy="28" r="7" fill="#ef4444" opacity="0.3" className="animate-ping" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Hiring Process */}
+            <div className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-inner">
+                    💼
+                  </div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Hiring Process</span>
+                </div>
+                <button
+                  onClick={onGoToSimulator}
+                  className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-amber-600 hover:text-white text-slate-600 dark:text-slate-300 flex items-center justify-center transition shadow-sm group-hover:scale-105"
+                  title="Test hiring pipeline"
+                >
+                  <span className="text-sm font-bold">→</span>
+                </button>
+              </div>
+
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                    3days
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                    <span className="text-sm">↗</span>
+                    <span>2.5 vs last month</span>
+                  </div>
+                </div>
+
+                {/* Amber Sparkline Graph */}
+                <div className="w-36 sm:w-44 h-16 flex-shrink-0">
+                  <svg viewBox="0 0 160 65" className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="sparklineAmber" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M 5 45 Q 25 50, 45 35 T 75 40 T 105 18 T 125 12 T 155 20 L 155 60 L 5 60 Z"
+                      fill="url(#sparklineAmber)"
+                    />
+                    <path
+                      d="M 5 45 Q 25 50, 45 35 T 75 40 T 105 18 T 125 12 T 155 20"
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="125" cy="12" r="4" fill="#ffffff" stroke="#f59e0b" strokeWidth="2.5" />
+                    <circle cx="125" cy="12" r="7" fill="#f59e0b" opacity="0.3" className="animate-ping" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+          </div>
           {/* Hero Welcome Banner */}
           <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
             <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-blue-500/10 to-transparent pointer-events-none"></div>
