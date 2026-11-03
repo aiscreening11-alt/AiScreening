@@ -1002,6 +1002,8 @@
     // 1. DASHBOARD VIEW
     // ==========================================
     function DashboardView({ metrics, jobs, candidates, onSelectCandidate, onOpenSchedule, onOpenDecision, onGoToSimulator, onGoToJobs, onOpenCreateJob, onGoToCandidates, showToast }) {
+      const [funnelJobId, setFunnelJobId] = useState('ALL');
+
       const stats = [
         { label: 'Total Applications', value: metrics?.totalApplications || metrics?.totalCandidates || candidates.length, color: 'from-blue-600 to-indigo-600', icon: '📑' },
         { label: 'Shortlisted (Stage 1)', value: metrics?.shortlisted || metrics?.shortlistedCount || candidates.filter(c => c.status === 'SHORTLISTED').length, color: 'from-emerald-500 to-teal-600', icon: '⭐' },
@@ -1014,6 +1016,34 @@
       const totalCandidatesCount = candidates.length || metrics?.totalApplications || 0;
       const displayTotalEmployee = totalCandidatesCount > 0 ? (totalCandidatesCount > 999 ? (totalCandidatesCount / 1000).toFixed(1) + 'k' : totalCandidatesCount) : '20.8k';
       const displayHired = hiredCount > 0 ? (hiredCount > 999 ? (hiredCount / 1000).toFixed(1) + 'k' : hiredCount) : '26.4k';
+
+      // Funnel computations
+      const filteredForFunnel = useMemo(() => {
+        if (!funnelJobId || funnelJobId === 'ALL') return candidates;
+        return candidates.filter(c => c.job?.id === funnelJobId);
+      }, [candidates, funnelJobId]);
+
+      const funnelTotalApplied = filteredForFunnel.length;
+      const funnelShortlisted = filteredForFunnel.filter(c =>
+        c.status === 'SHORTLISTED' ||
+        ['L1_SCHEDULED', 'L1_PASSED', 'L2_SCHEDULED', 'L2_PASSED', 'MANAGERIAL_SCHEDULED', 'HR_SCHEDULED', 'INTERVIEW_SCHEDULED', 'SELECTED'].includes(c.status)
+      ).length;
+
+      const funnelInterviewed = filteredForFunnel.filter(c =>
+        ['L1_SCHEDULED', 'L1_PASSED', 'L2_SCHEDULED', 'L2_PASSED', 'MANAGERIAL_SCHEDULED', 'HR_SCHEDULED', 'INTERVIEW_SCHEDULED', 'SELECTED'].includes(c.status) ||
+        (c.interviews && c.interviews.length > 0)
+      ).length;
+
+      const funnelHired = filteredForFunnel.filter(c => c.status === 'SELECTED').length;
+
+      const funnelBase = funnelTotalApplied > 0 ? funnelTotalApplied : 1;
+      const funnelShortlistPct = Math.round((funnelShortlisted / funnelBase) * 100);
+      const funnelInterviewPct = Math.round((funnelInterviewed / funnelBase) * 100);
+      const funnelHiredPct = Math.round((funnelHired / funnelBase) * 100);
+
+      const screenPassRate = funnelTotalApplied > 0 ? Math.round((funnelShortlisted / funnelTotalApplied) * 100) : 0;
+      const interviewAdvanceRate = funnelShortlisted > 0 ? Math.round((funnelInterviewed / funnelShortlisted) * 100) : 0;
+      const offerRate = funnelInterviewed > 0 ? Math.round((funnelHired / funnelInterviewed) * 100) : 0;
 
       return (
         <div className="space-y-8">
@@ -1199,7 +1229,248 @@
             </div>
 
           </div>
-          {/* Hero Welcome Banner */}
+
+          {/* ======================================================== */}
+          {/* INTERACTIVE RECRUITMENT CONVERSION FUNNEL (Stage Drop-off) */}
+          {/* ======================================================== */}
+          <div className="bg-white dark:bg-slate-900 rounded-[28px] p-6 sm:p-7 border border-slate-100 dark:border-slate-800 shadow-sm space-y-6">
+            
+            {/* Header with Title & Position Filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/20">
+                  📊
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <span>Recruitment Conversion Funnel</span>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      Live Velocity
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    End-to-end applicant conversion rates, stage bottlenecks, and pass-through drop-offs
+                  </p>
+                </div>
+              </div>
+
+              {/* Dynamic Job Position Filter */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Position:</span>
+                <select
+                  value={funnelJobId}
+                  onChange={(e) => setFunnelJobId(e.target.value)}
+                  className="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="ALL">All Active Roles ({jobs.length} jobs)</option>
+                  {jobs.map(j => (
+                    <option key={j.id} value={j.id}>{j.jobTitle} ({j.department})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Top KPI Summary Pills */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Candidate Pool</div>
+                  <div className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{funnelTotalApplied}</div>
+                </div>
+                <span className="text-lg">📥</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Screening Pass Rate</div>
+                  <div className="text-xl font-black text-blue-950 dark:text-blue-100 mt-0.5">{screenPassRate}%</div>
+                </div>
+                <span className="text-xs font-bold text-blue-600 bg-white dark:bg-blue-900 px-2 py-1 rounded-lg shadow-xs">Stage 1</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">Interview Advance</div>
+                  <div className="text-xl font-black text-purple-950 dark:text-purple-100 mt-0.5">{interviewAdvanceRate}%</div>
+                </div>
+                <span className="text-xs font-bold text-purple-600 bg-white dark:bg-purple-900 px-2 py-1 rounded-lg shadow-xs">Stage 2</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Overall Hire Rate</div>
+                  <div className="text-xl font-black text-emerald-950 dark:text-emerald-100 mt-0.5">{funnelHiredPct}%</div>
+                </div>
+                <span className="text-xs font-bold text-emerald-600 bg-white dark:bg-emerald-900 px-2 py-1 rounded-lg shadow-xs">Final</span>
+              </div>
+            </div>
+
+            {/* 4 Interactive Funnel Stages Flow */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative">
+              
+              {/* Stage 1: Applications Received */}
+              <div
+                onClick={onGoToCandidates}
+                className="p-5 rounded-2xl bg-gradient-to-b from-blue-50/60 to-white dark:from-slate-800/80 dark:to-slate-800/40 border border-blue-100 dark:border-slate-700/80 hover:border-blue-300 transition-all cursor-pointer group flex flex-col justify-between space-y-4 shadow-xs hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                      <span>📥</span>
+                      <span>1. Applications</span>
+                    </span>
+                    <span className="text-[11px] font-extrabold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 rounded-full">
+                      100% Volume
+                    </span>
+                  </div>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
+                    {funnelTotalApplied}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    All inbound candidate submissions processed via Gmail & file upload.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                    <div className="bg-blue-600 h-full rounded-full w-full" />
+                  </div>
+                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>Base pool</span>
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">100%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stage 2: Shortlisted (ATS Qualified) */}
+              <div
+                onClick={onGoToCandidates}
+                className="p-5 rounded-2xl bg-gradient-to-b from-emerald-50/60 to-white dark:from-slate-800/80 dark:to-slate-800/40 border border-emerald-100 dark:border-slate-700/80 hover:border-emerald-300 transition-all cursor-pointer group flex flex-col justify-between space-y-4 shadow-xs hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <span>⭐</span>
+                      <span>2. Shortlisted</span>
+                    </span>
+                    <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                      {funnelShortlistPct}% of total
+                    </span>
+                  </div>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
+                    {funnelShortlisted}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Qualified ATS scoring match (≥ 60 pts) on skills and requirements.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${Math.max(funnelShortlistPct, 5)}%` }}
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span className="text-rose-500 font-semibold">▼ {100 - screenPassRate}% dropped</span>
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">{funnelShortlistPct}% pass</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stage 3: Interview Pipeline */}
+              <div
+                onClick={onGoToCandidates}
+                className="p-5 rounded-2xl bg-gradient-to-b from-purple-50/60 to-white dark:from-slate-800/80 dark:to-slate-800/40 border border-purple-100 dark:border-slate-700/80 hover:border-purple-300 transition-all cursor-pointer group flex flex-col justify-between space-y-4 shadow-xs hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                      <span>🎥</span>
+                      <span>3. Interviewed</span>
+                    </span>
+                    <span className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/60 px-2 py-0.5 rounded-full">
+                      {funnelInterviewPct}% of total
+                    </span>
+                  </div>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
+                    {funnelInterviewed}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Scheduled for L1, L2 Technical, or Managerial evaluation rounds.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${Math.max(funnelInterviewPct, 5)}%` }}
+                      className="bg-purple-600 h-full rounded-full transition-all duration-500"
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span className="text-amber-500 font-semibold">{interviewAdvanceRate}% from Stage 2</span>
+                    <span className="font-semibold text-purple-700 dark:text-purple-400">{funnelInterviewPct}% pass</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stage 4: Hired Candidates */}
+              <div
+                onClick={onGoToCandidates}
+                className="p-5 rounded-2xl bg-gradient-to-b from-amber-50/60 to-white dark:from-slate-800/80 dark:to-slate-800/40 border border-amber-200 dark:border-slate-700/80 hover:border-amber-400 transition-all cursor-pointer group flex flex-col justify-between space-y-4 shadow-xs hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                      <span>🎉</span>
+                      <span>4. Hired / Offer</span>
+                    </span>
+                    <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                      {funnelHiredPct}% Conversion
+                    </span>
+                  </div>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
+                    {funnelHired}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Positive technical verdict given and formal job selection dispatched.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${Math.max(funnelHiredPct, 5)}%` }}
+                      className="bg-gradient-to-r from-amber-500 to-emerald-500 h-full rounded-full transition-all duration-500"
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span className="text-emerald-600 font-semibold">{offerRate}% offer rate</span>
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">{funnelHiredPct}% final</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* AI Funnel Diagnosis Callout */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex items-start gap-3">
+              <span className="text-lg flex-shrink-0">💡</span>
+              <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                <strong className="text-slate-900 dark:text-white">AI Pipeline Health Diagnosis: </strong>
+                {funnelTotalApplied > 0 ? (
+                  <span>
+                    Your automated screening engine filters out <span className="font-bold text-rose-600 dark:text-rose-400">{100 - screenPassRate}%</span> of unqualified submissions upfront, protecting hiring team bandwidth. Of shortlisted candidates advancing to interview, <span className="font-bold text-indigo-600 dark:text-indigo-400">{interviewAdvanceRate}%</span> make it to the active interview bench, with an interview-to-hire conversion of <span className="font-bold text-emerald-600 dark:text-emerald-400">{offerRate}%</span> (Healthy market benchmark: 35%–50%).
+                  </span>
+                ) : (
+                  <span>No candidate applications recorded yet for this role. Use the Inbound Simulator or share your job posting to begin collecting applicants.</span>
+                )}
+              </div>
+            </div>
+
+          </div>
           <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
             <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-blue-500/10 to-transparent pointer-events-none"></div>
             <div className="relative z-10 max-w-2xl">
