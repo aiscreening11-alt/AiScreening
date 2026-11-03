@@ -202,6 +202,20 @@
       const [auth, setAuth] = useState(getSavedAuth);
       const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'jobs', 'candidates', 'simulator', 'gmail'
 
+      // Universal Command Palette Spotlight State (Ctrl + K / Cmd + K)
+      const [showCommandPalette, setShowCommandPalette] = useState(false);
+
+      useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            setShowCommandPalette(prev => !prev);
+          }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+      }, []);
+
       // Theme State (Dark / Light Theme)
       const [theme, setTheme] = useState(() => {
         try {
@@ -679,8 +693,30 @@
                 ))}
               </nav>
 
+              {/* Quick Search Spotlight Pill (Ctrl + K / Cmd + K) */}
+              <button
+                onClick={() => setShowCommandPalette(true)}
+                title="Universal Spotlight Search (Ctrl + K or Cmd + K)"
+                className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-750 border border-slate-700/80 hover:border-slate-600 text-slate-300 hover:text-white transition-all shadow-inner text-xs font-medium group shrink-0"
+              >
+                <span className="text-slate-400 group-hover:text-blue-400 transition-colors">🔍</span>
+                <span className="text-slate-300 font-medium">Quick Search...</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-400 group-hover:text-slate-200">
+                  Ctrl K
+                </kbd>
+              </button>
+
               {/* HR Administrator Badge & Controls */}
               <div className="flex items-center gap-2 sm:gap-3 pl-3 sm:pl-4 border-l border-slate-800 shrink-0">
+                {/* Mobile Quick Search Button */}
+                <button
+                  onClick={() => setShowCommandPalette(true)}
+                  title="Quick Search (Ctrl + K)"
+                  className="lg:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center justify-center text-sm"
+                >
+                  🔍
+                </button>
+
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md ring-2 ring-blue-500/30 p-1 shrink-0 overflow-hidden">
                     <img
@@ -989,6 +1025,26 @@
               onConfirm={handleDeleteJob}
             />
           )}
+
+          {/* Universal Command Palette (Ctrl + K / Cmd + K Spotlight) */}
+          <CommandPaletteModal
+            isOpen={showCommandPalette}
+            onClose={() => setShowCommandPalette(false)}
+            candidates={candidates}
+            jobs={jobs}
+            onSelectCandidate={(c) => {
+              openCandidateDrawer(c);
+            }}
+            onNavigate={(tab) => {
+              setActiveTab(tab);
+            }}
+            onOpenCreateJob={() => {
+              setShowCreateJobModal(true);
+            }}
+            onToggleTheme={toggleTheme}
+            onRefresh={fetchData}
+            currentTheme={theme}
+          />
 
           {/* Footer */}
           <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
@@ -5711,6 +5767,673 @@
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // UNIVERSAL COMMAND PALETTE (Ctrl + K / Cmd + K)
+    // ==========================================
+    function CommandPaletteModal({
+      isOpen,
+      onClose,
+      candidates = [],
+      jobs = [],
+      onSelectCandidate,
+      onNavigate,
+      onOpenCreateJob,
+      onToggleTheme,
+      onRefresh,
+      currentTheme
+    }) {
+      const [query, setQuery] = useState('');
+      const [filterCategory, setFilterCategory] = useState('ALL'); // 'ALL', 'CANDIDATES', 'JOBS', 'ACTIONS'
+      const [selectedIndex, setSelectedIndex] = useState(0);
+      const inputRef = useRef(null);
+      const listRef = useRef(null);
+
+      // Reset state and autofocus when modal opens
+      useEffect(() => {
+        if (isOpen) {
+          setQuery('');
+          setFilterCategory('ALL');
+          setSelectedIndex(0);
+          const t = setTimeout(() => {
+            if (inputRef.current) inputRef.current.focus();
+          }, 60);
+          return () => clearTimeout(t);
+        }
+      }, [isOpen]);
+
+      // Helper to safely extract candidate skills
+      const extractCandidateSkills = (c) => {
+        if (Array.isArray(c?.topSkills) && c.topSkills.length > 0) {
+          return c.topSkills;
+        }
+        if (Array.isArray(c?.skills) && c.skills.length > 0) {
+          return c.skills.map(s => typeof s === 'string' ? s : (s?.skillName || s?.name || '')).filter(Boolean);
+        }
+        return [];
+      };
+
+      // Helper to extract job required skills
+      const extractJobSkills = (j) => {
+        if (Array.isArray(j?.requiredSkills)) return j.requiredSkills;
+        if (typeof j?.requiredSkills === 'string') {
+          return j.requiredSkills.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      };
+
+      // Static Quick Actions
+      const allActions = useMemo(() => [
+        {
+          id: 'action-create-job',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Post New Job Opening',
+          subtitle: 'Create a new job vacancy with AI screening benchmarks',
+          icon: '➕',
+          badge: 'Create',
+          run: () => { onClose(); onOpenCreateJob(); }
+        },
+        {
+          id: 'action-simulator',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Inbound Email Simulator',
+          subtitle: 'Simulate candidate resume submission & live screening email shoot',
+          icon: '✉️',
+          badge: 'Simulator',
+          run: () => { onClose(); onNavigate('simulator'); }
+        },
+        {
+          id: 'action-candidates',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Candidates Pipeline',
+          subtitle: 'View all candidate applications, ATS scores, and multi-round stages',
+          icon: '👥',
+          badge: 'Pipeline',
+          run: () => { onClose(); onNavigate('candidates'); }
+        },
+        {
+          id: 'action-jobs',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Job Openings & Roles',
+          subtitle: 'Manage active engineering positions, edit requirements, or archive',
+          icon: '💼',
+          badge: 'Jobs',
+          run: () => { onClose(); onNavigate('jobs'); }
+        },
+        {
+          id: 'action-dashboard',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Dashboard & Visual Funnel',
+          subtitle: 'Inspect recruitment conversion funnel, KPIs, and recent activities',
+          icon: '📊',
+          badge: 'Overview',
+          run: () => { onClose(); onNavigate('dashboard'); }
+        },
+        {
+          id: 'action-interviewers',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Interviewer Portal & Management',
+          subtitle: 'Manage certified technical and HR interviewers',
+          icon: '👨‍💼',
+          badge: 'Interviewers',
+          run: () => { onClose(); onNavigate('interviewers'); }
+        },
+        {
+          id: 'action-gmail',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Gmail Polling & Integration',
+          subtitle: 'Monitor Google OAuth 2.0 inbox status and background email polls',
+          icon: '📬',
+          badge: 'Gmail',
+          run: () => { onClose(); onNavigate('gmail'); }
+        },
+        {
+          id: 'action-theme',
+          category: 'ACTIONS',
+          type: 'action',
+          title: currentTheme === 'dark' ? 'Switch to Light Theme ☀️' : 'Switch to Dark Theme 🌙',
+          subtitle: currentTheme === 'dark' ? 'Activate crisp daytime color palette' : 'Activate easy-on-the-eyes dark mode theme',
+          icon: currentTheme === 'dark' ? '☀️' : '🌙',
+          badge: 'Theme',
+          run: () => { onClose(); onToggleTheme(); }
+        },
+        {
+          id: 'action-refresh',
+          category: 'ACTIONS',
+          type: 'action',
+          title: 'Refresh ATS Data',
+          subtitle: 'Sync candidates, jobs, Gmail connection, and live metrics',
+          icon: '🔄',
+          badge: 'Sync',
+          run: () => { onClose(); onRefresh(); }
+        }
+      ], [currentTheme, onClose, onOpenCreateJob, onNavigate, onToggleTheme, onRefresh]);
+
+      // Compute filtered items
+      const { candidateResults, jobResults, actionResults, flatItems } = useMemo(() => {
+        const q = query.trim().toLowerCase();
+
+        // 1. Filter Actions
+        let matchedActions = allActions.filter(act => {
+          if (!q) return true;
+          return act.title.toLowerCase().includes(q) ||
+                 act.subtitle.toLowerCase().includes(q) ||
+                 act.badge.toLowerCase().includes(q);
+        });
+
+        // 2. Filter Candidates
+        let matchedCandidates = [];
+        if (!q) {
+          // If no query, show top 5 candidates
+          matchedCandidates = candidates.slice(0, 5).map(c => {
+            const skills = extractCandidateSkills(c);
+            const score = c.finalAtsScore ?? c.atsScore ?? c.atsResult?.finalScore;
+            return {
+              id: 'cand-' + (c.id || Math.random()),
+              category: 'CANDIDATES',
+              type: 'candidate',
+              candidate: c,
+              title: c.fullName || 'Candidate Applicant',
+              subtitle: (c.jobTitle || c.job?.jobTitle || 'Applicant') + (c.email || c.senderEmail ? ' • ' + (c.email || c.senderEmail) : ''),
+              skills: skills,
+              score: score,
+              status: c.status,
+              icon: '👤',
+              badge: c.status ? c.status.replace(/_/g, ' ') : 'Applicant',
+              run: () => { onClose(); onSelectCandidate(c); }
+            };
+          });
+        } else {
+          matchedCandidates = candidates.filter(c => {
+            const nameMatch = (c.fullName || '').toLowerCase().includes(q);
+            const emailMatch = ((c.email || '') + (c.senderEmail || '') + (c.resumeEmail || '')).toLowerCase().includes(q);
+            const jobMatch = (c.jobTitle || c.job?.jobTitle || '').toLowerCase().includes(q);
+            const statusMatch = (c.status || '').toLowerCase().includes(q);
+            const skills = extractCandidateSkills(c);
+            const skillMatch = skills.some(s => s.toLowerCase().includes(q));
+            return nameMatch || emailMatch || jobMatch || statusMatch || skillMatch;
+          }).map(c => {
+            const skills = extractCandidateSkills(c);
+            const score = c.finalAtsScore ?? c.atsScore ?? c.atsResult?.finalScore;
+            return {
+              id: 'cand-' + (c.id || Math.random()),
+              category: 'CANDIDATES',
+              type: 'candidate',
+              candidate: c,
+              title: c.fullName || 'Candidate Applicant',
+              subtitle: (c.jobTitle || c.job?.jobTitle || 'Applicant') + (c.email || c.senderEmail ? ' • ' + (c.email || c.senderEmail) : ''),
+              skills: skills,
+              score: score,
+              status: c.status,
+              icon: '👤',
+              badge: c.status ? c.status.replace(/_/g, ' ') : 'Applicant',
+              matchedSkill: skills.find(s => s.toLowerCase().includes(q)),
+              run: () => { onClose(); onSelectCandidate(c); }
+            };
+          });
+        }
+
+        // 3. Filter Jobs
+        let matchedJobs = [];
+        if (!q) {
+          // If no query, show up to 4 active jobs
+          matchedJobs = jobs.slice(0, 4).map(j => {
+            const skills = extractJobSkills(j);
+            return {
+              id: 'job-' + (j.id || Math.random()),
+              category: 'JOBS',
+              type: 'job',
+              job: j,
+              title: j.jobTitle || 'Job Opening',
+              subtitle: (j.department ? j.department + ' • ' : '') + (j.location || 'Remote') + (j.employmentType ? ' • ' + j.employmentType : ''),
+              skills: skills,
+              status: j.status || 'ACTIVE',
+              icon: '💼',
+              badge: j.status || 'ACTIVE',
+              run: () => { onClose(); onNavigate('jobs'); }
+            };
+          });
+        } else {
+          matchedJobs = jobs.filter(j => {
+            const titleMatch = (j.jobTitle || '').toLowerCase().includes(q);
+            const deptMatch = (j.department || '').toLowerCase().includes(q);
+            const locMatch = (j.location || '').toLowerCase().includes(q);
+            const skills = extractJobSkills(j);
+            const skillMatch = skills.some(s => s.toLowerCase().includes(q));
+            return titleMatch || deptMatch || locMatch || skillMatch;
+          }).map(j => {
+            const skills = extractJobSkills(j);
+            return {
+              id: 'job-' + (j.id || Math.random()),
+              category: 'JOBS',
+              type: 'job',
+              job: j,
+              title: j.jobTitle || 'Job Opening',
+              subtitle: (j.department ? j.department + ' • ' : '') + (j.location || 'Remote') + (j.employmentType ? ' • ' + j.employmentType : ''),
+              skills: skills,
+              status: j.status || 'ACTIVE',
+              icon: '💼',
+              badge: j.status || 'ACTIVE',
+              matchedSkill: skills.find(s => s.toLowerCase().includes(q)),
+              run: () => { onClose(); onNavigate('jobs'); }
+            };
+          });
+        }
+
+        // Apply category filter pills if user selected one
+        let cResults = matchedCandidates;
+        let jResults = matchedJobs;
+        let aResults = matchedActions;
+
+        if (filterCategory === 'CANDIDATES') {
+          jResults = [];
+          aResults = [];
+        } else if (filterCategory === 'JOBS') {
+          cResults = [];
+          aResults = [];
+        } else if (filterCategory === 'ACTIONS') {
+          cResults = [];
+          jResults = [];
+        }
+
+        // Combine into flatItems for keyboard selection
+        const flat = [...cResults, ...jResults, ...aResults];
+
+        return {
+          candidateResults: cResults,
+          jobResults: jResults,
+          actionResults: aResults,
+          flatItems: flat
+        };
+      }, [query, filterCategory, candidates, jobs, allActions, onClose, onSelectCandidate, onNavigate]);
+
+      // Reset selectedIndex if it goes out of bounds
+      useEffect(() => {
+        setSelectedIndex(0);
+      }, [query, filterCategory]);
+
+      // Keyboard navigation handler inside the palette
+      const handleKeyDown = (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (flatItems.length > 0) {
+            setSelectedIndex(prev => (prev + 1) % flatItems.length);
+          }
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (flatItems.length > 0) {
+            setSelectedIndex(prev => (prev - 1 + flatItems.length) % flatItems.length);
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (flatItems[selectedIndex]) {
+            flatItems[selectedIndex].run();
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      };
+
+      if (!isOpen) return null;
+
+      // Helper to render score badge compactly
+      const renderMiniScore = (score) => {
+        if (score === null || score === undefined) return null;
+        const num = parseFloat(score);
+        let color = 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800';
+        if (num >= 80) color = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
+        else if (num >= 60) color = 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200 dark:border-amber-800';
+        return (
+          <span className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border ${color}`}>
+            {num.toFixed(0)}% ATS
+          </span>
+        );
+      };
+
+      let currentIndexCounter = 0;
+
+      return (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md flex items-start justify-center pt-12 sm:pt-20 px-3 sm:px-4"
+          onClick={onClose}
+        >
+          <div
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh] transition-all transform animate-in fade-in zoom-in-95 duration-150"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={handleKeyDown}
+          >
+            {/* Spotlight Search Header */}
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-white dark:bg-slate-900">
+              <span className="text-xl sm:text-2xl text-slate-400 dark:text-slate-500 pl-1 select-none">🔍</span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search candidates, skills (Java, Docker), jobs, actions..."
+                className="w-full bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base font-medium focus:outline-none"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-base"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+              <kbd className="hidden sm:inline-block px-2 py-1 text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700">
+                ESC
+              </kbd>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 flex items-center gap-1.5 overflow-x-auto text-xs">
+              {[
+                { id: 'ALL', label: 'All Results', count: flatItems.length },
+                { id: 'CANDIDATES', label: 'Candidates', count: candidateResults.length },
+                { id: 'JOBS', label: 'Jobs', count: jobResults.length },
+                { id: 'ACTIONS', label: 'Quick Actions', count: actionResults.length },
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setFilterCategory(cat.id)}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                    filterCategory === cat.id
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    filterCategory === cat.id ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}>
+                    {cat.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Results List */}
+            <div ref={listRef} className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-4">
+              {flatItems.length === 0 ? (
+                <div className="py-12 px-6 text-center">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl text-slate-400 mb-3">
+                    🔍
+                  </div>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-base">No results found</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                    No candidates, skills, or actions matched <span className="font-semibold text-blue-600 dark:text-blue-400">"{query}"</span>. Try searching for skills like <span className="font-medium">Java, Docker, AWS</span>, or candidate name.
+                  </p>
+                  {query && (
+                    <button
+                      onClick={() => setQuery('')}
+                      className="mt-4 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-100 transition"
+                    >
+                      Clear search query
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Candidates Group */}
+                  {candidateResults.length > 0 && (
+                    <div>
+                      <div className="px-3 py-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>Candidates ({candidateResults.length})</span>
+                        {!query && <span className="text-[10px] font-normal lowercase">recent</span>}
+                      </div>
+                      <div className="space-y-1 mt-1">
+                        {candidateResults.map(item => {
+                          const itemIndex = currentIndexCounter++;
+                          const isSelected = selectedIndex === itemIndex;
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={item.run}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`p-3 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-3 border ${
+                                isSelected
+                                  ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-400 dark:border-blue-600 shadow-sm'
+                                  : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 font-bold ${
+                                  isSelected
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+                                }`}>
+                                  {item.title ? item.title.charAt(0).toUpperCase() : 'C'}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                                      {item.title}
+                                    </span>
+                                    {renderMiniScore(item.score)}
+                                    {item.status && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                        {item.status.replace(/_/g, ' ')}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                    {item.subtitle}
+                                  </p>
+                                  {item.skills && item.skills.length > 0 && (
+                                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                                      {item.skills.slice(0, 4).map((s, sIdx) => {
+                                        const isQueryMatch = query && s.toLowerCase().includes(query.toLowerCase());
+                                        return (
+                                          <span
+                                            key={sIdx}
+                                            className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
+                                              isQueryMatch
+                                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 font-bold'
+                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                            }`}
+                                          >
+                                            {s}
+                                          </span>
+                                        );
+                                      })}
+                                      {item.skills.length > 4 && (
+                                        <span className="text-[10px] text-slate-400 font-mono">
+                                          +{item.skills.length - 4} more
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="shrink-0 flex items-center gap-2">
+                                {isSelected ? (
+                                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-100/70 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">
+                                    View ↵
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-xs hidden sm:inline">→</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Jobs Group */}
+                  {jobResults.length > 0 && (
+                    <div>
+                      <div className="px-3 py-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>Job Openings ({jobResults.length})</span>
+                      </div>
+                      <div className="space-y-1 mt-1">
+                        {jobResults.map(item => {
+                          const itemIndex = currentIndexCounter++;
+                          const isSelected = selectedIndex === itemIndex;
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={item.run}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`p-3 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-3 border ${
+                                isSelected
+                                  ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-400 dark:border-indigo-600 shadow-sm'
+                                  : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${
+                                  isSelected
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                                }`}>
+                                  💼
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                                      {item.title}
+                                    </span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                      {item.badge}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                    {item.subtitle}
+                                  </p>
+                                  {item.skills && item.skills.length > 0 && (
+                                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                                      {item.skills.slice(0, 4).map((s, sIdx) => {
+                                        const isQueryMatch = query && s.toLowerCase().includes(query.toLowerCase());
+                                        return (
+                                          <span
+                                            key={sIdx}
+                                            className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
+                                              isQueryMatch
+                                                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 font-bold'
+                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                            }`}
+                                          >
+                                            {s}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="shrink-0">
+                                {isSelected ? (
+                                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100/70 dark:bg-indigo-900/50 px-2 py-0.5 rounded-md">
+                                    Open ↵
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-xs hidden sm:inline">→</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions Group */}
+                  {actionResults.length > 0 && (
+                    <div>
+                      <div className="px-3 py-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>Quick Actions & Shortcuts ({actionResults.length})</span>
+                      </div>
+                      <div className="space-y-1 mt-1">
+                        {actionResults.map(item => {
+                          const itemIndex = currentIndexCounter++;
+                          const isSelected = selectedIndex === itemIndex;
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={item.run}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`p-3 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-3 border ${
+                                isSelected
+                                  ? 'bg-purple-50/80 dark:bg-purple-950/40 border-purple-400 dark:border-purple-600 shadow-sm'
+                                  : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${
+                                  isSelected
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                                }`}>
+                                  {item.icon}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-bold text-slate-900 dark:text-white text-sm">
+                                    {item.title}
+                                  </span>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                    {item.subtitle}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="shrink-0 flex items-center gap-2">
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                  {item.badge}
+                                </span>
+                                {isSelected && (
+                                  <span className="hidden sm:inline-flex items-center text-[11px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100/70 dark:bg-purple-900/50 px-2 py-0.5 rounded-md">
+                                    Execute ↵
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Spotlight Footer with Hotkey Guides */}
+            <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-3">
+                <span className="hidden sm:inline-flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-[10px] font-mono">↑</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-[10px] font-mono">↓</kbd>
+                  <span className="ml-1">to navigate</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-[10px] font-mono">↵</kbd>
+                  <span className="ml-1">to select</span>
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-[10px] font-mono">ESC</kbd>
+                  <span className="ml-1">to close</span>
+                </span>
+              </div>
+              <div className="text-[11px] font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                <span>Sanvii Spotlight</span>
+                <span>•</span>
+                <span className="font-mono">{flatItems.length} items</span>
               </div>
             </div>
           </div>
